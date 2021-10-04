@@ -671,6 +671,40 @@ def format_lines(msg, maxwidth=80):
     return map(str.strip, lines)
 
 
+thing_map = {
+    'dogs': get_some_dogs,
+    'gods': get_some_gods,
+    'sandwiches': get_some_sandwiches,
+    'foods': get_some_foods,
+    'apples': get_some_apples,
+    'horses': get_some_horses,
+    'dinosaurs': get_some_dinosaurs,
+    'cats': get_some_cats,
+    'birds': get_some_birds,
+    'pokemon': get_some_pokemon,
+    'elements': get_some_elements,
+    'cities': get_some_cities,
+    'colors': get_some_colors,
+    'celebrities': get_some_celebs,
+    'moods': get_some_moods,
+    'objects': get_some_objects,
+    'plants': get_some_plants,
+    'cocktails': get_some_cocktails,
+    'jobs': get_some_jobs,
+    'gadgets': get_some_gadgets,
+    'recipe steps': get_recipe_steps,
+    'crimes': get_some_crimes,
+    'babies': get_some_babies,
+    'countries': get_some_countries,
+    'diseases': get_some_diseases,
+    'sports': get_some_sports,
+    #'numbers': get_some_numbers,
+    'greetings': get_some_greets,
+    'problems': get_some_problems,
+    'spells': get_some_spells,
+}
+
+
 def thingsay(arg: str) -> str:
     """
     Main guy.
@@ -681,8 +715,10 @@ def thingsay(arg: str) -> str:
     arg = ''.join( [c for c in arg if c in string.printable] )
     re_arg = re.search( r"\s*(.+?)\s+(\w+(?:\s+steps)?)", arg )
     if not re_arg:
-        # just bomb out, we might have been overzealous in triggering
-        return ''
+        return "Didn't recognize this thing: `{thing}` (supported things: {ok_things})".format(
+            thing=arg,
+            ok_things=', '.join(sorted(["%s" % thing for thing in list(thing_map.keys())]))
+        )
     num = re_arg.group(1)
     things = re_arg.group(2)
     thingnum, fmt_str = get_thing_fmt( num )
@@ -732,38 +768,7 @@ def thingsay(arg: str) -> str:
         formatter = lambda c: ''.join( (reversed( base_formatter( c ) )) ).replace('(', '\x00').replace(')', '(').replace('\x00', ')')
         thingnum = abs( thingnum )
 
-    thing_map = {
-        'dogs': get_some_dogs,
-        'gods': get_some_gods,
-        'sandwiches': get_some_sandwiches,
-        'foods': get_some_foods,
-        'apples': get_some_apples,
-        'horses': get_some_horses,
-        'dinosaurs': get_some_dinosaurs,
-        'cats': get_some_cats,
-        'birds': get_some_birds,
-        'pokemon': get_some_pokemon,
-        'elements': get_some_elements,
-        'cities': get_some_cities,
-        'colors': get_some_colors,
-        'celebrities': get_some_celebs,
-        'moods': get_some_moods,
-        'objects': get_some_objects,
-        'plants': get_some_plants,
-        'cocktails': get_some_cocktails,
-        'jobs': get_some_jobs,
-        'gadgets': get_some_gadgets,
-        'recipe steps': get_recipe_steps,
-        'crimes': get_some_crimes,
-        'babies': get_some_babies,
-        'countries': get_some_countries,
-        'diseases': get_some_diseases,
-        'sports': get_some_sports,
-        #'numbers': get_some_numbers,
-        'greetings': get_some_greets,
-        'problems': get_some_problems,
-        'spells': get_some_spells,
-    }
+
     def rando(n=1):
         nd = {_thing: gen(n) for (_thing, gen) in list(thing_map.items())}
         while True:
