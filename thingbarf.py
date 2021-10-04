@@ -348,8 +348,11 @@ def get_some_sandwiches(num=1):
 
 
 def get_simple_json(path, entry):
-    with open(path) as f:
-        data = f.read()
+    with open(path, 'rb') as f:
+        try:
+            data = f.read().decode('utf-8')
+        except UnicodeError:
+            data = f.read().decode('ansi')
     items = json.loads(data)[entry]
     random.shuffle(items)
     for item in items:
@@ -430,7 +433,7 @@ def get_some_objects(num=1):
     return get_simple_json( path=os.path.join( corpora_wd, 'objects', 'objects.json' ), entry='objects' )
 
 def get_some_plants(num=1):
-    for entry in get_simple_json(path=os.path.join(corpora_wd, 'plants', 'plants.json'), entry='instruments'):  # ...instruments? OK
+    for entry in get_simple_json(path=os.path.join(corpora_wd, 'plants', 'plants.json'), entry='plants'):
         if g_verbose:
             yield '{name} ({species})'.format(**entry)
         else:
@@ -463,9 +466,9 @@ def get_recipe_steps(num=1):
     recipe_title = random.choice( menu_items ).capitalize()
     adjs = list( get_simple_json( path=os.path.join( corpora_wd, 'words', 'adjs.json' ), entry='adjs' ) )
     if random.random() < 0.2:
-        recipe_title = '%s %s' % (random.choice(adjs).capitalize(), recipe_title)
+        recipe_title = '**%s %s**' % (random.choice(adjs).capitalize(), recipe_title)
     else:
-        recipe_title = '%s' % recipe_title
+        recipe_title = '**%s**' % recipe_title
     prestr = recipe_title + ' [Ingredients: ' + ', '.join(recipe_ingredients) + ']'
 
     i = 0
@@ -478,13 +481,13 @@ def get_recipe_steps(num=1):
         yield stepstr
 
 def get_some_gadgets(num=1):
-    with open(os.path.join(cwd, "gadgets.txt")) as f:
+    with open(os.path.join(cwd, "txt", "gadgets.txt")) as f:
         lines = f.readlines()
     random.shuffle(lines)
     for line in lines:
         gadget, desc = line.split(':')
         if g_verbose:
-            yield '{gadget}: {desc}'.format(gadget=gadget, desc=desc.strip('. '))
+            yield '**{gadget}**: {desc}'.format(gadget=gadget, desc=desc.strip('. '))
         else:
             yield gadget
 
@@ -665,7 +668,7 @@ def format_lines(msg, maxwidth=80):
         if (len(lines[-1]) + 1 +  len(w)) > linelen:
             lines.append(u'')
         lines[-1] += u' ' + w
-    return map(unicode.strip, lines)
+    return map(str.strip, lines)
 
 
 def thingsay(arg: str) -> str:

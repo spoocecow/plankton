@@ -4,11 +4,16 @@ spoocecow 2021
 """
 import functools
 import logging
+import os
 import time
 
 import discord
+from discord.ext import commands
 
-#import thingbarf
+import thingbarf
+
+
+logging.basicConfig(level=logging.INFO)
 
 
 def clock_time_cache(max_age_s=300) -> callable:
@@ -43,11 +48,15 @@ def clock_time_cache(max_age_s=300) -> callable:
    return _wrapper
 
 
-@clock_time_cache(max_age_s=30)
-def f(s: str) -> str:
-   return '{}. {}'.format(time.time(), s[::-1])
+bot = commands.Bot(command_prefix='!')
+
+@bot.command(name='gimme')
+async def _thingbarf(ctx: commands.Context, *, line: str):
+   msg = thingbarf.thingsay(line)
+   await ctx.send(msg)
 
 
-class Bot(discord.Client):
-   pass
+with open(os.path.join('.never', 'tok.txt')) as tf:
+   token = tf.read().strip()
 
+bot.run(token)
