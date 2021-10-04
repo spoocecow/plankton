@@ -233,12 +233,16 @@ w*^0   4   9__sAF" `L  _Dr"  m__m""q__a^"m__*  "qA_  j" ""Au__f   J   0^--
 g_wiggle_detector = re.compile('.*'.join('wigglethatdumpstermachine'))
 
 @bot.event
-async def on_message(message: discord.Message):
+async def on_ready():
+   print("Lorged orn.")
+
+@bot.listen('on_message')
+async def wiggle_detector(message: discord.Message):
    if message.author == bot.user:
       return
 
    # the most important...
-   if g_wiggle_detector.search(message.content.lower()) and len(message.content) > 200:
+   if g_wiggle_detector.search(message.content.lower()) and len(message.content) < 200:
       await message.channel.send('wiggle that dumpster machine')
 
 
