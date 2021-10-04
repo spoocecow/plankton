@@ -6,6 +6,7 @@ import functools
 import logging
 import os
 import random
+import re
 import time
 from typing import List
 
@@ -128,6 +129,7 @@ async def funcat(ctx: commands.Context):
 |__\\     |__\\`"""
    )
 
+
 @bot.command()
 async def tgif(ctx: commands.Context):
    msg = random.choice( (
@@ -190,9 +192,14 @@ async def tgif(ctx: commands.Context):
    await ctx.send( msg )
 
 
-@bot.command()
-async def woooo(ctx: commands.Context, *, line: str):
-   msg = '```' + line.upper().center(75) + \
+# TODO catread, BK, wiggle that dumpster machine. acro
+# TODO aaq/canjoisnthere - post images???? ;>
+
+@bot.command(name='CYBER')
+async def cyber(ctx: commands.Context, *, line: str):
+   lines = thingbarf.format_lines(line, maxwidth=75)
+   head = '\n'.join(line.upper().center(75) for line in lines)
+   msg = '```' + head + \
    """
 #_                                                                       d
 ##_                                                                     d#
@@ -218,10 +225,25 @@ w*^0   4   9__sAF" `L  _Dr"  m__m""q__a^"m__*  "qA_  j" ""Au__f   J   0^--
  """
    await ctx.send(msg)
 
-# TODO catread, BK, wiggle that dumpster machine. acro
-# TODO aaq/canjoisnthere - post images???? ;>
 
+#
+# General text reactions (non !commands)
+#
+
+g_wiggle_detector = re.compile('.*'.join('wigglethatdumpstermachine'))
+
+@bot.event
+async def on_message(message: discord.Message):
+   if message.author == bot.user:
+      return
+
+   # the most important...
+   if g_wiggle_detector.search(message.content.lower()) and len(message.content) > 200:
+      await message.channel.send('wiggle that dumpster machine')
+
+
+# main
 with open(os.path.join('.never', 'tok.txt')) as tf:
- token = tf.read().strip()
+   token = tf.read().strip()
 
 bot.run(token)
