@@ -13,10 +13,11 @@ from typing import List
 import discord
 from discord.ext import commands
 
+import catread
 import thingbarf
 
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 
 def clock_time_cache(max_age_s=300) -> callable:
@@ -191,8 +192,12 @@ async def tgif(ctx: commands.Context):
    ) ).strip()
    await ctx.send( msg )
 
+@bot.command(name='catread')
+async def _catread(ctx: commands.Context):
+   res = catread.get_catread()
+   await ctx.send('```{}```'.format(res))
 
-# TODO catread, BK, wiggle that dumpster machine. acro
+# TODO BK, wiggle that dumpster machine. acro
 # TODO aaq/canjoisnthere - post images???? ;>
 
 @bot.command(name='CYBER')
@@ -245,6 +250,15 @@ async def wiggle_detector(message: discord.Message):
    if g_wiggle_detector.search(message.content.lower()) and len(message.content) < 200:
       await message.channel.send('wiggle that dumpster machine')
 
+
+@bot.listen('on_message')
+async def talky(message: discord.Message):
+   if message.author == bot.user:
+      return
+
+   if message.content.lower().startswith('klungo'):
+      # TODO
+      await message.channel.send('hey {}'.format(message.author.name.lower()))
 
 # main
 with open(os.path.join('.never', 'tok.txt')) as tf:
