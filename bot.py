@@ -133,6 +133,26 @@ async def funcat(ctx: commands.Context):
 
 @bot.command()
 async def tgif(ctx: commands.Context):
+   today = time.gmtime().tm_wday
+   if today != 4:
+      day = time.strftime('%A')
+      confused_opts = (
+         f'it is {day.lower()} my dudes',
+         f'it is {day.lower()} my dudes',
+         f'Happy {day} :)',
+         f'Happy {day} :)',
+         f"Thank Grunty It's {day}!",
+         f"Thank Grunty It's Not Friday! (villains hate friday) (im a villain)",
+         f'TGI.... {day}?!?!?',
+         f'TGI... {day}???',
+         f"TGI{day[0]}... hey wait",
+         f"TGI{day[0]}... hey wait",
+         f"in my opinion, it's {day} today.",
+      )
+      opt = random.choice(confused_opts)
+      await ctx.send(opt)
+      return
+
    msg = random.choice( (
       """
 ████████╗░██████╗░██╗███████╗
@@ -231,34 +251,48 @@ w*^0   4   9__sAF" `L  _Dr"  m__m""q__a^"m__*  "qA_  j" ""Au__f   J   0^--
    await ctx.send(msg)
 
 
-#
-# General text reactions (non !commands)
-#
-
-g_wiggle_detector = re.compile('.*'.join('wigglethatdumpstermachine'))
-
 @bot.event
 async def on_ready():
    print("Lorged orn.")
 
+#
+# General text reactions (non !commands)
+#
+
+@bot.listen('on_message')
+async def twisted_talky(message: discord.Message):
+   """Randomly chime in with >:D"""
+   if message.author == bot.user:
+      return
+   if message.content.endswith('>:D'):
+      if random.random() > 0.69:
+         time.sleep(random.random())
+         await message.channel.send('>:D')
+
+
+g_wiggle_detector = re.compile('.*'.join('wigglethatdumpstermachine'))
+
+
 @bot.listen('on_message')
 async def wiggle_detector(message: discord.Message):
+   """wiggle that dumpster machine"""
    if message.author == bot.user:
       return
 
-   # the most important...
    if g_wiggle_detector.search(message.content.lower()) and len(message.content) < 200:
       await message.channel.send('wiggle that dumpster machine')
 
 
 @bot.listen('on_message')
 async def talky(message: discord.Message):
+   """Respond to people talking to us with markov/gpt/somethin'"""
    if message.author == bot.user:
       return
 
    if message.content.lower().startswith('klungo'):
       # TODO
       await message.channel.send('hey {}'.format(message.author.name.lower()))
+
 
 # main
 with open(os.path.join('.never', 'tok.txt')) as tf:

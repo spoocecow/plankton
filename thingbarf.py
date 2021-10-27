@@ -646,6 +646,12 @@ def get_some_spells(num=1):
         else:
             yield spell.strip()
 
+def get_some_beasties(num=1):
+    with open(os.path.join(cwd, 'txt', 'beasties.txt')) as beasts_f:
+        beasts = beasts_f.readlines()
+    random.shuffle(beasts)
+    for beast in beasts:
+        yield beast.strip()
 
 def format_lines(msg, maxwidth=80):
     lineno = math.ceil(len(msg) / maxwidth)
@@ -671,7 +677,7 @@ def format_lines(msg, maxwidth=80):
     return map(str.strip, lines)
 
 
-thing_map = {
+g_thing_map = {
     'dogs': get_some_dogs,
     'gods': get_some_gods,
     'sandwiches': get_some_sandwiches,
@@ -702,6 +708,7 @@ thing_map = {
     'greetings': get_some_greets,
     'problems': get_some_problems,
     'spells': get_some_spells,
+    'beasties': get_some_beasties,
 }
 
 
@@ -711,6 +718,7 @@ def thingsay(arg: str) -> str:
     :param str arg: "16 eggs"
     """
     global g_verbose
+    thing_map = g_thing_map.copy()
     import string
     arg = ''.join( [c for c in arg if c in string.printable] )
     re_arg = re.search( r"\s*(.+?)\s+(\w+(?:\s+steps)?)", arg )
