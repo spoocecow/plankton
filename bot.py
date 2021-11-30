@@ -2,6 +2,7 @@
 funny bot for plankton discord
 spoocecow 2021
 """
+import datetime
 import functools
 import logging
 import os
@@ -133,9 +134,24 @@ async def funcat(ctx: commands.Context):
 
 @bot.command()
 async def tgif(ctx: commands.Context):
-   today = time.gmtime().tm_wday
+   today = time.localtime().tm_wday
    if today != 4:
+      if random.random() < 0.0113:
+         THE_FATED_DAY = datetime.datetime.fromtimestamp(
+            time.time() + ( random.random() * 2**32 )
+         )
+         await ctx.send("You will die on {day}, at {time}.".format(
+            day=THE_FATED_DAY.strftime('%A, %B %m, %Y'),
+            time=THE_FATED_DAY.strftime('%I:%M %p')
+         ))
+         return
       day = time.strftime('%A')
+      srystr = "{sry} {friend} {its} {day}".format(
+         sry=random.choice(['sorry', 'sorry', 'Well', 'Sorry', "I'm sorry", "ごめんなさい"]),
+         friend=random.choice(['pal', 'friend', 'bud']) + random.choice([',', '...', ',', '', '']),
+         its='it' + random.choice(["'s", "s", ""]) + random.choice(['', '', '', ' surprisingly', ' actually']),
+         day=random.choice([day.lower(), day, 'not Friday'])
+      )
       confused_opts = (
          f'it is {day.lower()} my dudes',
          f'it is {day.lower()} my dudes',
@@ -148,6 +164,11 @@ async def tgif(ctx: commands.Context):
          f"TGI{day[0]}... hey wait",
          f"TGI{day[0]}... hey wait",
          f"in my opinion, it's {day} today.",
+         srystr,
+         srystr,
+         srystr,
+         srystr,
+         srystr,
       )
       opt = random.choice(confused_opts)
       await ctx.send(opt)

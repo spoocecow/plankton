@@ -277,7 +277,7 @@ def get_some_dogs(num=1):
 
 def make_godstring(religion='', god='', info=''):
     if g_verbose:
-        retstr = "{godname}".format( godname=god )
+        retstr = "**{godname}**".format( godname=god )
     else:
         retstr = "{godname}".format( godname=god )
 
@@ -290,9 +290,10 @@ def make_godstring(religion='', god='', info=''):
 
 
 def get_some_gods(num=1):
-    with open( os.path.join(cwd, "txt", "gods.tsv"), 'r' ) as godf:
+    with open( os.path.join(cwd, "txt", "gods.tsv"), 'rb' ) as godf:
         gods = godf.readlines()
     god_selections = random.sample( gods, num )
+    god_selections = [s.decode('utf-8') for s in god_selections]
 
     naive_str = '\n'.join( god_selections )
     naive_strlen = len( naive_str )
@@ -342,7 +343,7 @@ def get_some_sandwiches(num=1):
             # (also strips ending periods)
             if desc.find('.'):
                 desc = desc[:desc.find('.')]
-            yield '{name}: {desc}'.format(name=sd['name'], desc=desc)
+            yield '**{name}**: {desc}'.format(name=sd['name'], desc=desc)
         else:
             yield '%s' % sd['name']
 
@@ -392,7 +393,7 @@ def get_some_birds(num=1):
     for entry in birbs:
         birb, family = entry
         if g_verbose:
-            yield '{name} ({fam})'.format(name=birb, fam=family)
+            yield '**{name}** ({fam})'.format(name=birb, fam=family)
         else:
             yield birb
 
@@ -462,10 +463,10 @@ def get_recipe_steps(num=1):
     if random.random() < 0.02:
         foods += list(get_simple_json( path=os.path.join( corpora_wd, 'science', 'toxic_chemicals.json' ), entry='chemicals' ))
 
-    recipe_ingredients = random.sample(foods, random.randint(2, num+1))
+    recipe_ingredients = random.sample(foods, random.randint(2, num*2))
     recipe_title = random.choice( menu_items ).capitalize()
     adjs = list( get_simple_json( path=os.path.join( corpora_wd, 'words', 'adjs.json' ), entry='adjs' ) )
-    if random.random() < 0.2:
+    if random.random() < 0.331331313131313333131333:
         recipe_title = '**%s %s**' % (random.choice(adjs).capitalize(), recipe_title)
     else:
         recipe_title = '**%s**' % recipe_title
@@ -478,7 +479,7 @@ def get_recipe_steps(num=1):
         stepstr = ('%d. ' % i) + entry.format(*recipe_ingredients).rstrip('.')
         if i == 1:
             stepstr = prestr + '  ' + stepstr
-        yield stepstr
+        yield '\n' + stepstr
 
 def get_some_gadgets(num=1):
     with open(os.path.join(cwd, "txt", "gadgets.txt")) as f:
@@ -500,13 +501,13 @@ def get_some_crimes(num=1):
 
 def get_some_babies(num=1):
     namezip_fn = os.path.join(cwd, 'txt', 'names.zip')
-    namezip = zipfile.ZipFile(namezip_fn, 'r')
+    namezip = zipfile.ZipFile(namezip_fn)
     inner_files = namezip.namelist()
     inner_files = [s for s in inner_files if s.endswith('.txt')]
     while True:
         inner_fn = random.choice(inner_files)
         y = re.search(r'yob(\d{4})\.txt', inner_fn).group(1)
-        with namezip.open(inner_fn) as name_f:
+        with namezip.open(inner_fn, 'r') as name_f:
             names_txt = name_f.read().decode('utf-8')
         rows = names_txt.splitlines()
         if not g_verbose:
@@ -616,7 +617,7 @@ def get_some_problems(num=1):
     random.shuffle(problems_raw)
     verbose = g_verbose or num < 7
     tot = 0
-    per_prob = 510/num if verbose else 400/num
+    per_prob = 999/num if verbose else 555/num
     for prob in problems_raw:
         short_version_m = re.match(r'[\w\s]+?:', prob)
         short_version = (short_version_m and short_version_m.group()) or prob
@@ -700,7 +701,7 @@ g_thing_map = {
     'gadgets': get_some_gadgets,
     'recipe steps': get_recipe_steps,
     'crimes': get_some_crimes,
-    'babies': get_some_babies,
+    #'babies': get_some_babies,  # TODO wtfs with the zipfile magic number
     'countries': get_some_countries,
     'diseases': get_some_diseases,
     'sports': get_some_sports,
