@@ -238,11 +238,11 @@ async def _catread(ctx: commands.Context):
    res = catread.get_catread()
    await ctx.send('```{}```'.format(res))
 
-# TODO BK, wiggle that dumpster machine. acro
+# TODO BK, acro
 # TODO aaq/canjoisnthere - post images???? ;>
 
 @bot.command(name='CYBER')
-async def cyber(ctx: commands.Context, *, line: str):
+async def cyber(ctx: commands.Context, *, line:str):
    lines = thingbarf.format_lines(line, maxwidth=75)
    head = '\n'.join(line.upper().center(75) for line in lines)
    msg = '```' + head + \
@@ -260,7 +260,7 @@ a0,3_j_j_9FN@N@0NMp__                                __ggNZNrNM"P_f_f_E,0a
 rNrr4r*pr4r@grNr@q@Ng@q@N0@N#@NNMpmggggmqgNN@NN@#@4p*@M@p4qp@w@m@Mq@r#rq@r
   F Jp 9__b__M,Juw*w*^#^9#""EED*dP_@EZ@^E@*#EjP"5M"gM@p*Ww&,jL_J__f  F j  
 -r#^^0""E" 6  q  q__hg-@4""*,_Z*q_"^pwr""p*C__@""0N-qdL_p" p  J" 3""5^^0r-
-  t  J  __,Jb--N\""",  *_s0M`""q_a@NW__JP^u_p"\""p4a,p" _F""V--wL,_F_ F  #  
+  t  J  __,Jb--N"\"",  *_s0M`""q_a@NW__JP^u_p"\""p4a,p" _F""V--wL,_F_ F  #  
 _,Jp*^#""9   L  5_a*N"\""q__INr" "q_e^"*,p^""qME_ y"\""p6u,f  j'  f "N^--LL_
    L  ]   k,w@#"\""_  "_a*^E   ba-" ^qj-""^pe"  J^-u_f  _f "q@w,j   f  jL  
    #_,J@^""p  `_ _jp-""q  _Dw^" ^cj*""*,j^  "p#_  y""^wE_ _F   F"^qN,_j   
@@ -270,6 +270,59 @@ w*^0   4   9__sAF" `L  _Dr"  m__m""q__a^"m__*  "qA_  j" ""Au__f   J   0^--
 ,x-"F   ]    Ax^" q    hp"  `u jM""u  a^ ^, j"  "*g_   p  ^mg_   DH       ```
  """
    await ctx.send(msg)
+
+
+@bot.command()
+async def minesweep(ctx: commands.Context, *, line:str='9'):
+   """Generate a minesweeper board"""
+   if line.strip().isdigit():
+      inp = int(line.strip())
+      size = max(3, min(9, inp))
+   else:
+      size = random.randint(5, 9)  # 9 is max b/c discord limits emojis in messages to 99 >:c
+
+   def _neighbors(_y, _x):
+      _candidates = [(_y+yd, _x+xd) for yd in (-1, 0, 1) for xd in (-1, 0, 1)]
+      _candidates.remove((_y,_x))
+      _copy = _candidates[:]
+      for _ny, _nx in _copy:
+         if not 0<=_ny<size or not 0<=_nx<size:
+            _candidates.remove((_ny,_nx))
+      return _candidates
+
+   board = [[0] * size for _ in range(size)]
+   bombs = random.randint(int(0.25 * size * size), int(0.45 * size * size))  # 25-45% of field
+   bombflag = -1
+   # place da bombs
+   while bombs:
+      ry, rx = random.randrange(size), random.randrange(size)
+      if ry == rx == 0:
+         # never place a bomb at top left
+         continue
+      if board[ry][rx] != bombflag:
+         # place bomb
+         board[ry][rx] = bombflag
+         bombs -= 1
+   # scan and increment neighbors of bombs
+   for sy in range(size):
+      for sx in range(size):
+         cell = board[sy][sx]
+         if cell == bombflag:
+            for (ny, nx) in _neighbors(sy, sx):
+               if board[ny][nx] != bombflag:
+                  board[ny][nx] += 1
+   import pprint
+   pprint.pprint(board)
+   # board complete, convert to text
+   msg = ''
+   conv = {bombflag: ':boom:', 0: ':zero:', 1: ':one:', 2: ':two:', 3: ':three:', 4: ':four:',
+           5: ':five:', 6: ':six:', 7: ':seven:', 8: ':eight:'}
+   for sy in range(size):
+      for sx in range(size):
+         msg += '||' + conv[board[sy][sx]] + '||'
+      msg += '\n'
+   await ctx.send(msg)
+
 
 
 @bot.event
