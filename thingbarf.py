@@ -654,6 +654,13 @@ def get_some_beasties(num=1):
     for beast in beasts:
         yield beast.strip()
 
+def get_some_snowplows(num=1):
+    with open(os.path.join(cwd, 'txt', 'mi_snowplows.txt')) as plows_f:
+        plows = plows_f.readlines()
+    random.shuffle(plows)
+    for plow in plows:
+        yield plow.strip()
+
 def format_lines(msg, maxwidth=80):
     lineno = math.ceil(len(msg) / maxwidth)
     if lineno >= 4:
@@ -710,6 +717,7 @@ g_thing_map = {
     'problems': get_some_problems,
     'spells': get_some_spells,
     'beasties': get_some_beasties,
+    'snowplows': get_some_snowplows,
 }
 
 

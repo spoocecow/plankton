@@ -314,7 +314,12 @@ async def minesweep(ctx: commands.Context, *, line:str='9'):
    import pprint
    pprint.pprint(board)
    # board complete, convert to text
-   msg = ''
+   import itertools
+   msg = random.choice(['mine', 'mines', 'minesweep', 'mines weep', 'mindsweap', 'mindsweee',
+      ''.join(random.choice(list(itertools.permutations('mine')))) + 
+      ''.join(random.choice(list(itertools.permutations('sweep'))))
+   ])
+   msg += '\n'
    conv = {bombflag: ':boom:', 0: ':zero:', 1: ':one:', 2: ':two:', 3: ':three:', 4: ':four:',
            5: ':five:', 6: ':six:', 7: ':seven:', 8: ':eight:'}
    for sy in range(size):
