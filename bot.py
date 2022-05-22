@@ -57,6 +57,7 @@ bot = commands.Bot(command_prefix='!')
 
 @bot.command(name='gimme')
 async def _thingbarf(ctx: commands.Context, *, line: str):
+   """Get some examples of some number of things"""
    msg = thingbarf.thingsay(line)
    await ctx.send(msg)
 
@@ -78,6 +79,7 @@ def get_rand_line(fn):
 
 @bot.command()
 async def english(ctx: commands.Context):
+   """Learn english dialect words from the 1700s"""
    fn = os.path.join('txt', '18thCdialectdict.txt')
    msg = get_rand_line(fn)
    await ctx.send( msg )
@@ -85,6 +87,7 @@ async def english(ctx: commands.Context):
 
 @bot.command()
 async def plot(ctx: commands.Context):
+   """It's da classic plot device"""
    getchar  = lambda: get_rand_line( os.path.join('txt', 'plot', 'char.txt') )
    getplace = lambda: get_rand_line( os.path.join('txt', 'plot', 'place.txt') )
    getverb  = lambda: get_rand_line( os.path.join('txt', 'plot', 'verb.txt') )
@@ -99,7 +102,7 @@ async def plot(ctx: commands.Context):
       enemy=getenemy(),
       goal=getgoal()
    )
-   while '$read' in s:
+   while '$' in s:
       s = s.replace(
          '$read %plotchar', getchar()
       ).replace(
@@ -122,6 +125,7 @@ async def plot(ctx: commands.Context):
 
 @bot.command()
 async def funcat(ctx: commands.Context):
+   """It's funcat."""
    await ctx.send(
       r"""` _        /|__/\
 //_______/ .  . \
@@ -134,6 +138,7 @@ async def funcat(ctx: commands.Context):
 
 @bot.command()
 async def tgif(ctx: commands.Context):
+   """Thank G*d It's Friday!"""
    today = time.localtime().tm_wday
    if today != 4:
       if random.random() < 0.0113:
@@ -164,6 +169,7 @@ async def tgif(ctx: commands.Context):
          f"TGI{day[0]}... hey wait",
          f"TGI{day[0]}... hey wait",
          f"in my opinion, it's {day} today.",
+         "darkter beppery",
          srystr,
          srystr,
          srystr,
@@ -174,7 +180,10 @@ async def tgif(ctx: commands.Context):
       await ctx.send(opt)
       return
 
-   msg = random.choice( (
+   msg = ''
+   if random.random() <= 0.13:
+      msg = get_rand_line( os.path.join('txt', 'greetz.txt') ) + '\n'
+   msg += random.choice( (
       """
 ████████╗░██████╗░██╗███████╗
 ╚══██╔══╝██╔════╝░██║██╔════╝
@@ -229,12 +238,13 @@ async def tgif(ctx: commands.Context):
 ██║░░░░░██║░░██║██║██████╔╝██║░░██║░░░██║░░░
 ╚═╝░░░░░╚═╝░░╚═╝╚═╝╚═════╝░╚═╝░░╚═╝░░░╚═╝░░░
       """,
-      "tgif"
+      "tgif",
    ) ).strip()
    await ctx.send( msg )
 
 @bot.command(name='catread')
 async def _catread(ctx: commands.Context):
+   """Random log line with cat"""
    res = catread.get_catread()
    await ctx.send('```{}```'.format(res))
 
@@ -243,6 +253,7 @@ async def _catread(ctx: commands.Context):
 
 @bot.command(name='CYBER')
 async def cyber(ctx: commands.Context, *, line:str):
+   """Prints an annoying thing"""
    lines = thingbarf.format_lines(line, maxwidth=75)
    head = '\n'.join(line.upper().center(75) for line in lines)
    msg = '```' + head + \
@@ -291,7 +302,7 @@ async def minesweep(ctx: commands.Context, *, line:str='9'):
       return _candidates
 
    board = [[0] * size for _ in range(size)]
-   bombs = random.randint(int(0.25 * size * size), int(0.45 * size * size))  # 25-45% of field
+   bombs = random.randint(int(0.15 * size * size), int(0.4 * size * size))  # 15-40% of field
    bombflag = -1
    # place da bombs
    while bombs:
@@ -370,11 +381,34 @@ async def talky(message: discord.Message):
 
    if message.content.lower().startswith('klungo'):
       # TODO
-      await message.channel.send('hey {}'.format(message.author.name.lower()))
+      if random.random() < 0.33:
+         greet = get_rand_line( os.path.join('txt', 'greetz.txt') )
+      else:
+         greet = random.choice(['Hey', 'Hi', 'Hello', 'Sup'] * 2 + ['Ahoy', 'Salutations', 'Hail and well met'])
+      thing = thingbarf.thingsay('1 thing please')
+      them = message.author.name
+      if random.random() > 0.69:
+         name = get_rand_line( os.path.join('txt', 'plot', 'stupidnames.txt'))
+         if ',' in name:
+            name = name[:name.find(',')]
+         im = random.choice(["My name is", "My name's", "I'm", "I am"] * 2 + ["You may call me"])
+         thing = f"{im} {name}"
+
+      if random.random() < 0.33:
+         greet = greet.lower().replace("'", '')
+         them = them.lower()
+         thing = thing.lower().replace("'", '')
+
+      cmds = sorted(bot.all_commands.keys())
+      cmds.remove('CYBER')  # shh
+      cmds.remove('help')
+      cmdstr = ' '.join('`!{}`'.format(cmd) for cmd in cmds)
+      await message.channel.send(f"{greet}, {them}. {thing}\n||Supported commands: " + cmdstr + "||")
 
 
 # main
-with open(os.path.join('.never', 'tok.txt')) as tf:
-   token = tf.read().strip()
+if __name__ == "__main__":
+   with open(os.path.join('.never', 'tok.txt')) as tf:
+      token = tf.read().strip()
 
-bot.run(token)
+   bot.run(token)
