@@ -8,6 +8,7 @@ import json
 import os
 import random
 import re
+import time
 import zipfile
 
 _thisfile = inspect.getfile( inspect.currentframe() )
@@ -118,6 +119,12 @@ def get_thing_fmt(reqnum):
     try:
         thingnum = float( reqnum )
     except ValueError:
+        try:
+            _ = complex(reqnum)
+            # tell certain people to stop doing the same joke
+            return ZEROTHINGSRESPONSE(), "No. Stop doing this. Ask for a real number of {things}."
+        except (TypeError, ValueError):
+            pass
         easy_cases = {'a': 1, 'an': 1, 'the': 1, '': 0, 'NaN': 0, 'nan': 0, 'NAN': 0}
         if reqnum in easy_cases:
             thingnum = float( easy_cases[reqnum] )
@@ -261,7 +268,7 @@ def get_thing_fmt(reqnum):
 
 
 def get_some_dogs(num=1):
-    with open( os.path.join(cwd, "txt", "dogs.txt") ) as dogf:
+    with open( os.path.join(cwd, "txt", "dogs.txt"), encoding='cp437' ) as dogf:
         dogs = dogf.readlines()
     dog_selections = random.sample( range( len( dogs ) ), num )
     if g_verbose:
@@ -353,7 +360,7 @@ def get_simple_json(path, entry):
         try:
             data = f.read().decode('utf-8')
         except UnicodeError:
-            data = f.read().decode('ansi')
+            data = f.read().decode('cp437')
     items = json.loads(data)[entry]
     random.shuffle(items)
     for item in items:
@@ -450,7 +457,7 @@ def get_recipe_steps(num=1):
     """I am having way too much fun with this."""
     menu_items = list(get_simple_json(path=os.path.join( corpora_wd, 'foods', 'menuItems.json' ), entry='menuItems' ))
     foods = list()
-    if random.random() < 0.3:
+    if random.random() < 0.4:
         foods += list(menu_items)
     foods += list(get_simple_json(path=os.path.join( corpora_wd, 'foods', 'fruits.json' ), entry='fruits' ))
     foods += list(get_simple_json(path=os.path.join( corpora_wd, 'foods', 'vegetables.json' ), entry='vegetables' ))
@@ -458,19 +465,35 @@ def get_recipe_steps(num=1):
     foods += list(get_simple_json(path=os.path.join( corpora_wd, 'foods', 'pizzaToppings.json' ), entry='pizzaToppings' ))
     foods += list(get_simple_json(path=os.path.join( corpora_wd, 'foods', 'herbs_n_spices.json' ), entry='herbs' ))
     foods += list(get_simple_json(path=os.path.join( corpora_wd, 'foods', 'herbs_n_spices.json' ), entry='spices' ))
-    if random.random() < 0.05:
+    if random.random() < 0.075:
         foods += list(get_simple_json( path=os.path.join( corpora_wd, 'objects', 'objects.json' ), entry='objects' ))
-    if random.random() < 0.02:
+    if random.random() < 0.03:
         foods += list(get_simple_json( path=os.path.join( corpora_wd, 'science', 'toxic_chemicals.json' ), entry='chemicals' ))
 
-    recipe_ingredients = random.sample(foods, random.randint(2, num*2))
+    recipe_ingredients = random.sample(foods, random.randint(3, num*2))
     recipe_title = random.choice( menu_items ).capitalize()
     adjs = list( get_simple_json( path=os.path.join( corpora_wd, 'words', 'adjs.json' ), entry='adjs' ) )
     if random.random() < 0.331331313131313333131333:
         recipe_title = '**%s %s**' % (random.choice(adjs).capitalize(), recipe_title)
     else:
         recipe_title = '**%s**' % recipe_title
-    prestr = recipe_title + ' [Ingredients: ' + ', '.join(recipe_ingredients) + ']'
+
+    amounts = ['1', '1', '1', '1', 'one', 'one'] * 2 + ['1/8', '1/7', '1/4', '1/3', '1/2', '2', '2', 'two', '3', 'three', '4', 'four', '5', 'five', '6', 'six']
+    units = ['tsp', 'tbsp', 'tbsp', 'ounce', 'cup', 'cup', 'cup', 'cup', 'pint', 'gallon', 'liter', 'lb', 'pound'] * 2 + ['whole', 'handful', 'fistful', 'bushel', 'bag', 'box', 'carton', 'cubic foot', 'square mile', 'acre', 'barnful']
+
+    prestr = recipe_title + '\nIngredients:\n'
+    ingr_list = []
+    for ingr in recipe_ingredients:
+        amount = unit = mod = ''
+        if random.random() < 0.9:
+            amount = random.choice(amounts)
+            if random.random() < 0.8:
+                unit = random.choice(units)
+        if random.random() < 0.45:
+            mod = random.choice(['diced', 'sliced', 'chopped', 'julienned', 'minced', 'raw', 'pre-cooked', 'parboiled', 'juiced', 'crushed'] * 2 + ['dried', 'wet', 'extra sloppy', 'rinsed', 'unwashed', 'frozen', 'dessicated', 'American'])
+        ingr_entry = f'{amount} {unit} {ingr}, {mod}'.strip(' ,')
+        ingr_list.append(ingr_entry)
+    prestr += '> ' + '\n> '.join(ingr_list) + '\n'
 
     i = 0
     for entry in get_simple_json( path=os.path.join( corpora_wd, 'foods', 'combine.json' ), entry='instructions' ):
@@ -478,7 +501,7 @@ def get_recipe_steps(num=1):
         i += 1
         stepstr = ('%d. ' % i) + entry.format(*recipe_ingredients).rstrip('.')
         if i == 1:
-            stepstr = prestr + '  ' + stepstr
+            stepstr = prestr + stepstr
         yield '\n' + stepstr
 
 def get_some_gadgets(num=1):
@@ -551,9 +574,15 @@ def get_some_countries(num=1):
 
 def get_some_diseases(num=1):
     symptoms = list(get_some_symptoms(num))
+    with open( os.path.join('txt', 'ducca_ailments.txt') ) as ducca_f:
+        ducca_diseases = ducca_f.readlines()
+        ducca_diseases = [l.strip() for l in ducca_diseases]
 
     for entry in get_simple_json(path=os.path.join(corpora_wd, 'medicine', 'diseases.json'), entry='diseases'):
         # each entry is a list of increasingly specific terms, so most specific term is most verbose
+        if random.random() < 0.1 + (g_verbose * 0.6):
+            yield random.choice( ducca_diseases )
+            continue
         if g_verbose:
             disease = entry[-1]
         else:
@@ -612,7 +641,7 @@ def get_some_greets(num=1):
 
 
 def get_some_problems(num=1):
-    with open( os.path.join( cwd, "txt", "problems.txt" ) ) as probs_f:
+    with open( os.path.join( cwd, "txt", "problems.txt" ), encoding='cp437' ) as probs_f:
         problems_raw = probs_f.readlines()
     random.shuffle(problems_raw)
     verbose = g_verbose or num < 7
@@ -624,7 +653,7 @@ def get_some_problems(num=1):
         if verbose:
             yield prob.strip()
         else:
-            yield short_version.strip()
+            yield short_version.strip(': ')
 
 def get_some_spells(num=1):
     with open(os.path.join(cwd, "txt", "fft_spells.txt") ) as spells_f:
@@ -640,10 +669,10 @@ def get_some_spells(num=1):
                                   "My mana is gone...", "Hark! No more Magic Points!", "my Magic Points ran away!!!!! :(",
                                   "Alas! I've no more MP.", "-- What?! I'm out of magic!?!"] )
         elif n > limit:
-            yield ('.'*random.randint(2, n)) + random.choice( ["drained", "no MP", "no mana", "no more MP","no more mana",
-                                                               "MP drained", "mana drained", "I'm out", "alas", "", "", ".",
-                                                               "..", "no more spells", "...", "ow", "no", "no...",
-                                                               "mp... gone", "mana... gone"] ) + ('.'*random.randint(0, n))
+            yield ('.'*random.randint(2, n)) + random.choice( 
+            ["drained", "no MP", "no mana", "no more MP","no more mana", "MP drained", "mana drained", "I'm out", "alas", "", "", ".", "..", 
+            "no more spells", "...", "ow", "ough", "ugh", "augh", "wah", "*grunt*", "no", "no...", "noO", "NO", "my points", "mp... gone", "mana... gone"] 
+             ) + ('.'*random.randint(0, n))
         else:
             yield spell.strip()
 
@@ -661,6 +690,164 @@ def get_some_snowplows(num=1):
     for plow in plows:
         yield plow.strip()
 
+def get_some_stupidnames(num=1):
+    with open(os.path.join(cwd, 'txt', 'plot', 'stupidnames.txt'), encoding='cp437') as names_f:
+        names = names_f.readlines()
+    random.shuffle(names)
+    for name in names:
+        if (',' in name) and g_verbose:
+            n, rest = name.split(',')
+            yield '{} _({})_'.format(n.strip(), rest.strip())
+        else:
+            yield name.split(',')[0].strip()
+
+def get_some_airports(num=1):
+    with open(os.path.join(cwd, 'txt', 'airports.tsv'), encoding='utf-8') as airports_f:
+        airports_l = airports_f.readlines()
+    # filter out incomplete entries
+    lines = [l for l in airports_l if l.count('\t') == 2]
+    airports = random.sample(lines, int(num*1.5))
+    random.shuffle(airports)
+    airports = [l.split('\t') for l in airports]
+
+    for i, (code, longcode, name) in enumerate(airports):
+        yield '**{}** _({})_'.format(code.strip(), name.strip())
+
+
+def analyze_airports(airports):
+    codes = [l.split()[0].strip('*') for l in airports]
+    codestr = ''.join(codes)
+    code_re = re.compile(r'^(' + r'|'.join(codes) + r'){2,}$', re.MULTILINE)
+
+    with open(os.path.join(cwd, 'txt', 'wordlist.txt')) as wl_f:
+        words = list(sorted([l.strip() for l in wl_f.readlines() if not l.startswith('#') and len(l.strip()) >= 4], key=len, reverse=True))
+    search = '\n'.join(words)
+
+    best_match = 0
+    candidates = []
+    for m in code_re.finditer(search):  # this almost never works
+        w = m.group().strip()
+        if len(w) >= best_match:
+            best_match = len(w)
+            candidates.append(w)
+    if candidates:
+        print(candidates)
+        random.shuffle(candidates)
+        canstr = ', '.join('`{}`'.format(w) for w in candidates)
+        # replace rightmost comma with 'and'
+        rci = canstr.rfind(', ')
+        if rci > 0:
+            canstr = canstr[:rci] + ' and ' + canstr[rci+2:]
+        return "You can spell `{}` with some of those codes!".format( canstr )
+
+    # try and assemble by letter instead of full code triplets
+    for word in words:
+        t = list(codestr)
+        for letter in word:
+            if letter in t:
+                t.remove(letter)
+            else:
+                break
+        else:
+            # didn't break, t (codestr) contains every letter in word
+            return "You can spell `{}` with the letters in those codes!".format(word)
+
+    return ''
+
+
+def get_some_bad_anagrams(num=1):
+
+    def has_digits(_str):
+        for _l in _str:
+            if _l in '0123456789':
+                return True
+        return False
+
+    def _is_substr(_target, _word):
+        if len(_word) > len(_target):
+            return False
+        #assert isinstance(_target, str), "{!r} is {}".format(_target, type(_target))
+        #assert isinstance(_word, str), "{!r} is {}".format(_word, type(_word))
+        for _l in _word:
+            if _word.count(_l) > _target.count(_l):
+                return False
+        return True
+
+    def _is_anagram(_w1, _w2):
+        return tuple(sorted(_w1.replace(' ', ''))) == tuple(sorted(_w2.replace(' ', '')))
+
+    def _subtract(_base, _remove):
+        l = list(_base)
+        for c in _remove:
+            if c in l:
+                l.remove(c)
+        return ''.join(l)
+
+    with open(os.path.join(cwd, 'txt', 'wordlist.txt')) as wl_f:
+        words = tuple(sorted([l.strip() for l in wl_f.readlines() if (not l.startswith('#')) and (not has_digits(l)) and len(l.strip())>1], key=len, reverse=True))
+    words = words + ('A', 'I', 'K', 'O', 'U')
+
+    for _ in range(num):
+
+        # pick left hand side
+        def _pick_min(min_size=3):
+            c = random.choice(words)
+            while len(c) < min_size:
+                c = random.choice(words)
+            return c
+
+        if random.random() > 0.113:
+            target = [_pick_min(7), _pick_min(7)]
+        else:
+            target = [_pick_min(6), _pick_min(4), _pick_min(6)]
+
+        cleantarget = ''.join(target)
+
+        candidates = [w for w in words if _is_substr(cleantarget, w)]
+
+        def _build(_target, _assembly, _candidates):
+            if not _target:
+                # we're done..?
+                yield _assembly
+                return
+            for word in sorted(_candidates, key=len, reverse=True):
+                if _is_substr(_target, word) and word not in target and word not in _assembly:
+
+                    newtarget = _subtract(_target, word)
+                    if newtarget == '':
+                        # we're done!
+                        yield _assembly + [word]
+                        return
+                    # it contributes, but does it screw us?
+                    # look for at least one word that is still in remainder TODO ensure entirety of remainder can be built with words?
+                    newcandidates = [w for w in _candidates if _is_substr(newtarget, w)]
+                    if not newcandidates:
+                        continue
+                    # keep goin!
+                    for _res in _build(newtarget, _assembly + [word], newcandidates):
+                        yield _res
+            # candidates exhausted, let's hallucinate
+
+        goo = _build(cleantarget, [], candidates)
+        final = []
+        for res in goo:
+            restr = ' '.join(res)
+            #print(restr)
+            if _is_anagram(cleantarget, restr):
+                #print("YAY!")
+                final = res
+                break
+
+        if not final:
+            print("bad target")
+            continue
+
+        random.shuffle(final)
+        finalstr = ' '.join(final)
+        targetstr = ' '.join(target)
+        yield '`{}` is an anagram of `{}`'.format(targetstr, finalstr)
+
+
 def format_lines(msg, maxwidth=80):
     lineno = math.ceil(len(msg) / maxwidth)
     if lineno >= 4:
@@ -671,13 +858,7 @@ def format_lines(msg, maxwidth=80):
     raw_words = msg.split()
     words = []
     for w in raw_words:
-        max_word_width = linelen / 2
-        if False:
-            #if len(w) > max_word_width:
-            # split long spammy words
-            words.extend( [w[:max_word_width], w[max_word_width:] ] )
-        else:
-            words.append(w)
+        words.append(w)
     for w in words:
         if (len(lines[-1]) + 1 +  len(w)) > linelen:
             lines.append(u'')
@@ -718,7 +899,23 @@ g_thing_map = {
     'spells': get_some_spells,
     'beasties': get_some_beasties,
     'snowplows': get_some_snowplows,
+    'stupidnames': get_some_stupidnames,
+    'airports': get_some_airports,
+    'anagrams': get_some_bad_anagrams,
 }
+
+
+def get_some_things(n=1):
+    nd = {_thing: gen(n) for (_thing, gen) in list(g_thing_map.items())}
+    while True:
+        k = random.choice(list(nd.keys()))
+        if k in ['things', 'recipe steps', 'spells']:
+            continue
+        g = nd[k]
+        it = next(g)
+        yield '{s} _({thing})_'.format(s=it, thing=k)
+
+g_thing_map['things'] = get_some_things
 
 
 def thingsay(arg: str) -> str:
@@ -731,13 +928,31 @@ def thingsay(arg: str) -> str:
     import string
     arg = ''.join( [c for c in arg if c in string.printable] )
     re_arg = re.search( r"\s*(.+?)\s+(\w+(?:\s+steps)?)", arg )
+    
+    # set up some aliases (printable or otherwise)
+    # printed
+    thing_map['recipes'] = get_recipe_steps
+    printable_thing_map = thing_map.copy()
+    # non-printed aliases
+    thing_map['names'] = get_some_stupidnames
+    thing_map['recipe'] = get_recipe_steps  # TODO above regex breaks 'recipe steps' etc. blahh
+    
     if not re_arg:
-        return "Didn't recognize this thing: `{thing}` (supported things: {ok_things})".format(
-            thing=arg,
-            ok_things=', '.join(sorted(["%s" % thing for thing in list(thing_map.keys())]))
-        )
-    num = re_arg.group(1)
-    things = re_arg.group(2)
+        # check for "!gimme things" case
+        for thing in thing_map:
+            if thing in arg:
+                # forgot to ask for an amount. that's fine.
+                num = random.randint(1,7)
+                things = thing
+                break
+        else:
+            return "Didn't recognize this thing: `{thing}` (supported things: {ok_things})".format(
+                thing=arg,
+                ok_things=', '.join(sorted(["%s" % thing for thing in list(printable_thing_map.keys())]))
+            )
+    else:
+        num = re_arg.group(1)
+        things = re_arg.group(2)
     thingnum, fmt_str = get_thing_fmt( num )
     printout = str(fmt_str.format(things=things))
 
@@ -785,19 +1000,7 @@ def thingsay(arg: str) -> str:
         formatter = lambda c: ''.join( (reversed( base_formatter( c ) )) ).replace('(', '\x00').replace(')', '(').replace('\x00', ')')
         thingnum = abs( thingnum )
 
-
-    def rando(n=1):
-        nd = {_thing: gen(n) for (_thing, gen) in list(thing_map.items())}
-        while True:
-            k = random.choice(list(nd.keys()))
-            if k in ['things', 'recipe steps', 'spells']:
-                continue
-            g = nd[k]
-            it = next(g)
-            yield '{s} _({thing})_'.format(s=it, thing=k)
-    thing_map['things'] = rando
-    thing_map['recipes'] = get_recipe_steps
-    printable_thing_map = thing_map.copy()
+    # finally, look for thing in user input
     for k,v in list(printable_thing_map.items()):
         thing_map[k.rstrip('s')] = v
     if things in thing_map:
@@ -811,26 +1014,46 @@ def thingsay(arg: str) -> str:
     get_thing = getter(thingmax).__next__
     separator = ','
     if 'recipe' in things: separator = '.'
+    if 'problem' in things or 'anagram' in things:
+        printout += '\n *'
+        separator = '\n *'
 
+    # assemble the list
+    thinglist = []
     s = printout + ' '
     i = thingnum
     while i > 1:
-        s += formatter( get_thing() ) + separator + ' '
+        thing = get_thing()
+        thinglist.append(thing)
+        s += formatter( thing ) + separator + ' '
         i -= 1
     if thingnum <= 2:
         s = s.replace( separator, '' )
     if thingnum > 1:
-        if 'recipe' not in things:
+        if 'recipe' not in things and 'problem' not in things and 'anagram' not in things:
             s += 'and '
-    last_thing = formatter( get_thing() )
+    thing = get_thing()
+    thinglist.append(thing)
+    last_thing = formatter( thing )
     if i == 1:
         s += last_thing + '.'
     else:
         d_pct = int( i * len( last_thing ) )
         rev_chr = '||'
         s += last_thing[:d_pct] + rev_chr + last_thing[d_pct:] + rev_chr + '.'
+
+    # any final messages about what we returned?
+    addenda = {
+        'airports': analyze_airports,
+    }
+    if things in addenda:
+        s += addenda[things](thinglist)
+
+    # be polite
     if politeness_enabled:
         s += polite_tag
     # TODO: what's discord line length limit?
-    s = '\r\n'.join(format_lines(s, 999))
+    if len(s) > 999:
+        s = '\r\n'.join(format_lines(s, 999))
+    print("Bye! I'm returning: {!r}".format(s))
     return s
