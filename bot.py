@@ -8,6 +8,10 @@ import logging
 import os
 import random
 import re
+import socket
+import stat
+import string
+import subprocess
 import time
 from typing import List
 
@@ -19,6 +23,8 @@ import thingbarf
 
 
 logging.basicConfig(level=logging.DEBUG)
+
+g_markovproc = None
 
 
 def clock_time_cache(max_age_s=300) -> callable:
@@ -52,20 +58,95 @@ def clock_time_cache(max_age_s=300) -> callable:
 
    return _wrapper
 
+intents = discord.Intents(messages=True, guilds=True, message_content=True)
+bot = commands.Bot(command_prefix='!', intents=intents)
 
-bot = commands.Bot(command_prefix='!')
+def levenshtein_distance(first, second):
+   """Find the Levenshtein distance between two strings.
+   Taken from http://www.korokithakis.net/node/87"""
+   if len(first) > len(second):
+      first, second = second, first
+   if len(second) == 0:
+      return len(first)
+   first_length = len(first) + 1
+   second_length = len(second) + 1
+   distance_matrix = [[0] * second_length for x in range(first_length)]
+   for i in range(first_length):
+      distance_matrix[i][0] = i
+   for j in range(second_length):
+      distance_matrix[0][j]=j
+   for i in range(1, first_length):
+      for j in range(1, second_length):
+         deletion = distance_matrix[i-1][j] + 1
+         insertion = distance_matrix[i][j-1] + 1
+         substitution = distance_matrix[i-1][j-1]
+         if first[i-1] != second[j-1]:
+            substitution += 1
+         distance_matrix[i][j] = min(insertion, deletion, substitution)
+   return distance_matrix[first_length-1][second_length-1]
+
+import pickle
+if os.path.exists('jail'):
+   with open('jail', 'rb+') as jailf:
+      jail = pickle.load(jailf)
+else:
+   jail = {}
 
 @bot.command(name='gimme')
 async def _thingbarf(ctx: commands.Context, *, line: str):
+   global jail
    """Get some examples of some number of things"""
+   asker = ctx.author.name.lower()
+   for f in dir(ctx.author):
+      print("{}: {}".format(f, getattr(ctx.author,f)))
+
+   if asker in jail and jail[asker] >= 10:
+      await ctx.send("Your sins have caught up to you.")
+      return
+
    msg = thingbarf.thingsay(line)
+   if "Didn't recognize this thing" in msg or "u are a " in msg:
+      best_guess = 9999999
+      probable_thing = ''
+      # what were they trying to do?
+      if '`' in msg:
+         guessed_thing = re.search('`(.+?)`', msg).group(1)
+         for thing in thingbarf.g_thing_map:
+            guess = levenshtein_distance(thing, guessed_thing)
+            if guess < best_guess:
+               best_guess = guess
+               probable_thing = thing
+      else:
+         # just being a fucker
+         guessed_thing = 'who cares'
+      print("{} != {}, score {}".format(guessed_thing, probable_thing, best_guess))
+      if best_guess >= 3 and 'trev' in asker:
+         # jail
+         criminal = asker
+         with open('jail', 'ab+') as jailf:
+            if jail.get(criminal, 0) >= 10:
+               await ctx.send("Think about what you have done.")
+               return
+            else:
+               if criminal in jail:
+                  jail[criminal] += 1
+               else:
+                  jail[criminal] = 1
+               pickle.dump(jail, jailf)
+         await ctx.send("The criminal {c} has {n} Hilarious Jokes remaining.".format(c=criminal, n=10-jail[criminal]))
+         return
+
    await ctx.send(msg)
 
 
-@clock_time_cache(max_age_s=60)
+#@clock_time_cache(max_age_s=60)
 def get_lines(fn: str) -> List[str]:
-   with open(fn) as f:
-      return [l.strip() for l in f.readlines() if l.strip()]
+   try:
+       with open(fn) as f:
+          return [l.strip() for l in f.readlines() if l.strip()]
+   except UnicodeError:
+       with open(fn, 'rb') as f:
+          return [l.strip() for l in f.read().decode('cp437').splitlines() if l.strip()]  # python3 is so annoying
 
 
 def get_rand_lines(fn, n=1):
@@ -181,7 +262,7 @@ async def tgif(ctx: commands.Context):
       return
 
    msg = ''
-   if random.random() <= 0.13:
+   if random.random() <= 1/13.:
       msg = get_rand_line( os.path.join('txt', 'greetz.txt') ) + '\n'
    msg += random.choice( (
       """
@@ -379,31 +460,90 @@ async def talky(message: discord.Message):
    if message.author == bot.user:
       return
 
-   if message.content.lower().startswith('klungo'):
-      # TODO
-      if random.random() < 0.33:
-         greet = get_rand_line( os.path.join('txt', 'greetz.txt') )
+   if message.content.lower() == 'klungo':
+      await message.channel.send( get_klungo_greet(message) )
+   elif 'klungo' in message.content.lower():
+      # markov bot time wahahwthtyy
+      msg = get_markov_fun(message.content.replace('klungo', '').replace('Klungo', '').lstrip(' ,.:!-').rstrip(' ,'))
+      if msg:
+         if msg.startswith('ACTION '):
+            msg = msg.replace('ACTION ', '/me ')  # TODO hey this doesn't work. whadda heck I gota do discord.py???
+         await message.channel.send( msg )
       else:
-         greet = random.choice(['Hey', 'Hi', 'Hello', 'Sup'] * 2 + ['Ahoy', 'Salutations', 'Hail and well met'])
-      thing = thingbarf.thingsay('1 thing please')
-      them = message.author.name
-      if random.random() > 0.69:
-         name = get_rand_line( os.path.join('txt', 'plot', 'stupidnames.txt'))
-         if ',' in name:
-            name = name[:name.find(',')]
-         im = random.choice(["My name is", "My name's", "I'm", "I am"] * 2 + ["You may call me"])
-         thing = f"{im} {name}"
+         await message.channel.send( '(im shy today ok...) {msg}'.format( msg=get_klungo_greet(message) ) )
 
-      if random.random() < 0.33:
-         greet = greet.lower().replace("'", '')
-         them = them.lower()
-         thing = thing.lower().replace("'", '')
 
-      cmds = sorted(bot.all_commands.keys())
-      cmds.remove('CYBER')  # shh
-      cmds.remove('help')
-      cmdstr = ' '.join('`!{}`'.format(cmd) for cmd in cmds)
-      await message.channel.send(f"{greet}, {them}. {thing}\n||Supported commands: " + cmdstr + "||")
+def get_klungo_greet(message: discord.Message):
+   if random.random() < 0.33:
+      greet = get_rand_line( os.path.join('txt', 'greetz.txt') )
+   else:
+      greet = random.choice(['Hey', 'Hi', 'Hello', 'Sup'] * 2 + ['Ahoy', 'Salutations', 'Hail and well met'])
+   thing = thingbarf.thingsay('a thing please')
+   them = message.author.name
+   if random.random() > 0.69 or 'name' in message.content.lower():
+      name = get_rand_line( os.path.join('txt', 'plot', 'stupidnames.txt'))
+      if ',' in name:
+         name = name[:name.find(',')]
+      im = random.choice(["My name is", "My name's", "I'm", "I am"] * 2 + ["You may call me"])
+      thing = f"{im} {name}"
+
+   if random.random() < 0.33:
+      greet = greet.lower().replace("'", '')
+      them = them.lower()
+      thing = thing.lower().replace("'", '')
+
+   cmds = sorted(bot.all_commands.keys())
+   cmds.remove('CYBER')  # shh
+   cmds.remove('help')
+   cmdstr = ' '.join('`!{}`'.format(cmd) for cmd in cmds)
+   return f"{greet}, {them}. {thing}\n||Supported commands: " + cmdstr + "||"
+
+def get_markov_fun(msg):
+   sock = socket.socket()
+   try:
+      sock.connect(('localhost', 6667))
+      print(sock.recv(4096))
+      sock.send(b'PASS whatever\n')
+      sock.send(b'NICK planktonbot\n')
+      sock.send(b'USER foo 0 * :planko\n')
+      time.sleep(0.1)
+      r = sock.recv(4096)
+      while b'End of MOTD command.' not in r:
+         print('>',r)
+         r = sock.recv(4096)
+         time.sleep(0.1)
+      print('>',r)
+      #time.sleep(0.1)
+      #sock.send(b'JOIN #duh\n')
+      time.sleep(0.1)
+      #print("join>", sock.recv(4096))
+      print("Sending:", 'PRIVMSG Klungo {msg}'.format(msg=msg).encode('utf-8'))
+      sock.send('PRIVMSG Klungo {msg}\n'.format(msg=msg).encode('utf-8'))
+      sock.settimeout(2)
+      resp = sock.recv(4096)
+      print("HONKERS!!!!!!!!!")
+      print(resp)
+      sock.send(b'QUIT\n')
+      if resp.find(b'PRIVMSG planktonbot :')>0:
+         cleanresp = resp[resp.find(b'PRIVMSG planktonbot :')+len(b'PRIVMSG planktonbot :'):].decode('utf-8').strip()
+         return ''.join( [c for c in cleanresp if c in string.printable] )
+   except (socket.error, socket.timeout, ValueError, IndexError) as e:
+      print(e)
+      return ''
+   finally:
+      sock.close()
+
+# secret admin stuff
+import secretbot
+@bot.listen('on_message')
+async def secret(message: discord.Message):
+   """?"""
+   if message.author == bot.user:
+      return
+   elif not secretbot.would_handle(message):
+      return
+   else:
+      await secretbot.handle(message)
 
 
 # main
