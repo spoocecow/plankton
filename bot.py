@@ -18,6 +18,7 @@ from typing import List
 import discord
 from discord.ext import commands
 
+import anagramz
 import catread
 import thingbarf
 
@@ -420,6 +421,21 @@ async def minesweep(ctx: commands.Context, *, line:str='9'):
       msg += '\n'
    await ctx.send(msg)
 
+
+@bot.command('anagram')
+async def anagramtime(ctx: commands.Context, *, line: str):
+   if len(line) > 50 or len(line) <3:
+      await ctx.send("Be reasonable, {} 💔".format(thingbarf.get_dumdum()))
+      return
+   res = anagramz.get_anagram(line)
+   random.shuffle(res)
+   await ctx.send("`{}`".format(' '.join(res)))
+
+
+@bot.command('grunty')
+async def grunty(ctx: commands.Context):
+   # TODO
+   await ctx.send("workin on it")
 
 
 @bot.event

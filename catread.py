@@ -110,7 +110,7 @@ def is_line_bad(nick, text):
     return False
 
 def get_line(log):
-    with open(log, encoding='ansi') as logfile:
+    with open(log, encoding='cp437') as logfile:
         logging.debug("opening %s", log)
         lines = logfile.readlines()
         line_bad = True
@@ -152,7 +152,7 @@ def find_date(line, loglines):
     line_i = loglines.index(line)
     date = ''
     for log_l in reversed(loglines[:line_i]):
-        if log_l.startswith('Session Start:'):
+        if log_l.startswith('Session Start:') or log_l.startswith('Session Time:'):
             _, _, wd, m, d, t, y = log_l.split()
             return '%s %s %s' % (m,d,y)
 

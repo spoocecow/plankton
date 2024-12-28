@@ -693,13 +693,18 @@ def get_some_snowplows(num=1):
 def get_some_stupidnames(num=1):
     with open(os.path.join(cwd, 'txt', 'plot', 'stupidnames.txt'), encoding='cp437') as names_f:
         names = names_f.readlines()
+    name_chronos = {name: i for i, name in enumerate(names)}
     random.shuffle(names)
+    lucky = random.random() < 0.251
     for name in names:
+        post = ''
+        if lucky:
+            post = ' _(#{})_'.format(name_chronos[name]+1)
         if (',' in name) and g_verbose:
             n, rest = name.split(',')
-            yield '{} _({})_'.format(n.strip(), rest.strip())
+            yield '{} _({})_'.format(n.strip(), rest.strip()) + post
         else:
-            yield name.split(',')[0].strip()
+            yield name.split(',')[0].strip() + post
 
 def get_some_airports(num=1):
     with open(os.path.join(cwd, 'txt', 'airports.tsv'), encoding='utf-8') as airports_f:
@@ -755,37 +760,9 @@ def analyze_airports(airports):
     return ''
 
 
-def get_some_bad_anagrams(num=1):
-
-    def has_digits(_str):
-        for _l in _str:
-            if _l in '0123456789':
-                return True
-        return False
-
-    def _is_substr(_target, _word):
-        if len(_word) > len(_target):
-            return False
-        #assert isinstance(_target, str), "{!r} is {}".format(_target, type(_target))
-        #assert isinstance(_word, str), "{!r} is {}".format(_word, type(_word))
-        for _l in _word:
-            if _word.count(_l) > _target.count(_l):
-                return False
-        return True
-
-    def _is_anagram(_w1, _w2):
-        return tuple(sorted(_w1.replace(' ', ''))) == tuple(sorted(_w2.replace(' ', '')))
-
-    def _subtract(_base, _remove):
-        l = list(_base)
-        for c in _remove:
-            if c in l:
-                l.remove(c)
-        return ''.join(l)
-
-    with open(os.path.join(cwd, 'txt', 'wordlist.txt')) as wl_f:
-        words = tuple(sorted([l.strip() for l in wl_f.readlines() if (not l.startswith('#')) and (not has_digits(l)) and len(l.strip())>1], key=len, reverse=True))
-    words = words + ('A', 'I', 'K', 'O', 'U')
+def get_some_anagrams(num=1):
+    import anagramz
+    words = anagramz.words()
 
     for _ in range(num):
 
@@ -801,42 +778,7 @@ def get_some_bad_anagrams(num=1):
         else:
             target = [_pick_min(6), _pick_min(4), _pick_min(6)]
 
-        cleantarget = ''.join(target)
-
-        candidates = [w for w in words if _is_substr(cleantarget, w)]
-
-        def _build(_target, _assembly, _candidates):
-            if not _target:
-                # we're done..?
-                yield _assembly
-                return
-            for word in sorted(_candidates, key=len, reverse=True):
-                if _is_substr(_target, word) and word not in target and word not in _assembly:
-
-                    newtarget = _subtract(_target, word)
-                    if newtarget == '':
-                        # we're done!
-                        yield _assembly + [word]
-                        return
-                    # it contributes, but does it screw us?
-                    # look for at least one word that is still in remainder TODO ensure entirety of remainder can be built with words?
-                    newcandidates = [w for w in _candidates if _is_substr(newtarget, w)]
-                    if not newcandidates:
-                        continue
-                    # keep goin!
-                    for _res in _build(newtarget, _assembly + [word], newcandidates):
-                        yield _res
-            # candidates exhausted, let's hallucinate
-
-        goo = _build(cleantarget, [], candidates)
-        final = []
-        for res in goo:
-            restr = ' '.join(res)
-            #print(restr)
-            if _is_anagram(cleantarget, restr):
-                #print("YAY!")
-                final = res
-                break
+        final = anagramz.get_anagram(' '.join(target))
 
         if not final:
             print("bad target")
@@ -901,7 +843,7 @@ g_thing_map = {
     'snowplows': get_some_snowplows,
     'stupidnames': get_some_stupidnames,
     'airports': get_some_airports,
-    'anagrams': get_some_bad_anagrams,
+    'anagrams': get_some_anagrams,
 }
 
 
