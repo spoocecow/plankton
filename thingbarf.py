@@ -2,6 +2,8 @@
 funny give command
 adapted for py3/discord 2021
 """
+import collections
+import csv
 import math, cmath
 import inspect
 import json
@@ -490,7 +492,7 @@ def get_recipe_steps(num=1):
             if random.random() < 0.8:
                 unit = random.choice(units)
         if random.random() < 0.45:
-            mod = random.choice(['diced', 'sliced', 'chopped', 'julienned', 'minced', 'raw', 'pre-cooked', 'parboiled', 'juiced', 'crushed'] * 2 + ['dried', 'wet', 'extra sloppy', 'rinsed', 'unwashed', 'frozen', 'dessicated', 'American'])
+            mod = random.choice(['diced', 'sliced', 'chopped', 'julienned', 'minced', 'raw', 'pre-cooked', 'parboiled', 'juiced', 'crushed'] * 3 + ['dried', 'wet', 'extra sloppy', 'rinsed', 'unwashed', 'frozen', 'dessicated', 'American'])
         ingr_entry = f'{amount} {unit} {ingr}, {mod}'.strip(' ,')
         ingr_list.append(ingr_entry)
     prestr += '> ' + '\n> '.join(ingr_list) + '\n'
@@ -580,7 +582,7 @@ def get_some_diseases(num=1):
 
     for entry in get_simple_json(path=os.path.join(corpora_wd, 'medicine', 'diseases.json'), entry='diseases'):
         # each entry is a list of increasingly specific terms, so most specific term is most verbose
-        if random.random() < 0.1 + (g_verbose * 0.6):
+        if random.random() < 0.05 + (int(g_verbose) * 0.4):
             yield random.choice( ducca_diseases )
             continue
         if g_verbose:
@@ -605,9 +607,7 @@ def get_some_sports(num=1):
 
 
 def get_some_numbers(num=1):
-    s0 = ("", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
-    s1 = ("ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen")
-    s2 = ("", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety")
+
     for i in range(num):
         p = random.random()
         if p < 0.5:
@@ -626,10 +626,65 @@ def get_some_numbers(num=1):
             yield "666 >:D"
         else:
             # regular number...
-            s = ''
-            for d in str(n):
-                pass  # TODO
-            yield n
+            yield stringify_number(n)
+
+
+def stringify_number(N):
+    s0 = ("", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
+    s1 = ("ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen")
+    s2 = ("", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety")
+    E = ("", "", "hundred", "thousand", )
+
+    n = N
+    s = ''
+    stack = []
+    e = 0
+
+    while n >= 1:
+       acc = int(n % 1000)
+       if acc >= 100:
+           hund = acc//100
+           #stack.insert(0, s0[hund])
+           stack.append(s0[hund])
+           acc = acc - (hund*100)
+       if acc < 10:
+           stack.append(s0[acc])
+       elif acc < 20:
+           stack.append(s1[acc-10])
+       else:
+           ones = acc%10
+           tens = (acc - ones)//10
+           stack.extend([s0[ones], s2[tens]])
+       #if e % 4 > 2 and acc > 0:
+       #   stack.append(E[e%4])
+       e += 1
+       n = (n-acc)//1000
+    rv = []
+    for e, w in enumerate(reversed(stack)):
+        rv.append(w)
+        if e%3==0 and e>0:
+            rv.append('hundred')
+        if e%4==0 and e>0:
+            rv.append('thousand')
+    return N, rv
+
+    """
+    while n >= 1:
+        acc = int(n)%10
+        #stack.append(acc)
+        if e>3 and e%4 == 0:  # TODO this logic isn't quite right
+            stack.append('thousand')
+        if e%3 == 1:  # 10s digit
+            # TODO twelve, etc.
+            stack.extend( (s2[acc], ) )
+        elif e%3 == 2 and acc>0:  # 100s digit
+            stack.extend( (E[e%3], s0[acc] ) )
+        else:
+            stack.append(s0[acc])
+        e += 1
+        n = (n-acc)/10.0
+    """
+    return N, list(reversed(stack))
 
 
 def get_some_greets(num=1):
@@ -691,15 +746,20 @@ def get_some_snowplows(num=1):
         yield plow.strip()
 
 def get_some_stupidnames(num=1):
-    with open(os.path.join(cwd, 'txt', 'plot', 'stupidnames.txt'), encoding='cp437') as names_f:
+    with open(os.path.join(cwd, 'txt', 'plot', 'stupidnames.txt'), encoding='utf-8') as names_f:
         names = names_f.readlines()
+    name_chronos = {name: i for i, name in enumerate(names)}
     random.shuffle(names)
+    lucky = random.random() < 0.251
     for name in names:
+        post = ''
+        if lucky:
+            post = ' _(#{})_'.format(name_chronos[name]+1)
         if (',' in name) and g_verbose:
             n, rest = name.split(',')
-            yield '{} _({})_'.format(n.strip(), rest.strip())
+            yield '{} _({})_'.format(n.strip(), rest.strip()) + post
         else:
-            yield name.split(',')[0].strip()
+            yield name.split(',')[0].strip() + post
 
 def get_some_airports(num=1):
     with open(os.path.join(cwd, 'txt', 'airports.tsv'), encoding='utf-8') as airports_f:
@@ -754,38 +814,47 @@ def analyze_airports(airports):
 
     return ''
 
+def get_some_movies(num=1):
+    fn = os.path.join(cwd, 'txt', 'movies_metadata.csv')
+    movie = collections.namedtuple('Movie', ('title', 'year', 'tagline', 'desc', 'rating'))
+    movies = []
+    with open(fn, encoding='utf-8') as movie_f:
+        dr = csv.DictReader(movie_f)
+        for row in dr:
+            M = movie(row['title'], row['release_date'], row['tagline'], row['overview'], row['vote_average'])
+            movies.append(M)
+    random.shuffle(movies)
+    movies = movies[:num+1]
+    show_desc = random.random() < 0.4
+    for m in movies:
+        star_str = ''
+        rating = float(m.rating)
+        for i in range(10):
+            if i+1 < int(rating):
+                star_str += '★'
+            elif i+1 == int(rating) and rating-i >= 0.5:
+                star_str += '⯨'
+            else:
+                star_str += '☆'
+        if g_verbose:
+            d = m.desc or m.tagline
+            yield '**{title}** _({year})_: {desc} - {starz}'.format(
+                title=m.title, year=m.year, desc=d, starz=star_str
+            )
+        elif show_desc:
+            d = m.tagline or ''
+            yield '**{title}** _({year})_: {desc}'.format(
+                title=m.title, year=m.year, desc=d
+            )
+        else:
+            yield '**{title}** _({year})_'.format(
+                title=m.title, year=m.year
+            )
 
-def get_some_bad_anagrams(num=1):
 
-    def has_digits(_str):
-        for _l in _str:
-            if _l in '0123456789':
-                return True
-        return False
-
-    def _is_substr(_target, _word):
-        if len(_word) > len(_target):
-            return False
-        #assert isinstance(_target, str), "{!r} is {}".format(_target, type(_target))
-        #assert isinstance(_word, str), "{!r} is {}".format(_word, type(_word))
-        for _l in _word:
-            if _word.count(_l) > _target.count(_l):
-                return False
-        return True
-
-    def _is_anagram(_w1, _w2):
-        return tuple(sorted(_w1.replace(' ', ''))) == tuple(sorted(_w2.replace(' ', '')))
-
-    def _subtract(_base, _remove):
-        l = list(_base)
-        for c in _remove:
-            if c in l:
-                l.remove(c)
-        return ''.join(l)
-
-    with open(os.path.join(cwd, 'txt', 'wordlist.txt')) as wl_f:
-        words = tuple(sorted([l.strip() for l in wl_f.readlines() if (not l.startswith('#')) and (not has_digits(l)) and len(l.strip())>1], key=len, reverse=True))
-    words = words + ('A', 'I', 'K', 'O', 'U')
+def get_some_anagrams(num=1):
+    import anagramz
+    words = anagramz.words()
 
     for _ in range(num):
 
@@ -801,42 +870,7 @@ def get_some_bad_anagrams(num=1):
         else:
             target = [_pick_min(6), _pick_min(4), _pick_min(6)]
 
-        cleantarget = ''.join(target)
-
-        candidates = [w for w in words if _is_substr(cleantarget, w)]
-
-        def _build(_target, _assembly, _candidates):
-            if not _target:
-                # we're done..?
-                yield _assembly
-                return
-            for word in sorted(_candidates, key=len, reverse=True):
-                if _is_substr(_target, word) and word not in target and word not in _assembly:
-
-                    newtarget = _subtract(_target, word)
-                    if newtarget == '':
-                        # we're done!
-                        yield _assembly + [word]
-                        return
-                    # it contributes, but does it screw us?
-                    # look for at least one word that is still in remainder TODO ensure entirety of remainder can be built with words?
-                    newcandidates = [w for w in _candidates if _is_substr(newtarget, w)]
-                    if not newcandidates:
-                        continue
-                    # keep goin!
-                    for _res in _build(newtarget, _assembly + [word], newcandidates):
-                        yield _res
-            # candidates exhausted, let's hallucinate
-
-        goo = _build(cleantarget, [], candidates)
-        final = []
-        for res in goo:
-            restr = ' '.join(res)
-            #print(restr)
-            if _is_anagram(cleantarget, restr):
-                #print("YAY!")
-                final = res
-                break
+        final = anagramz.get_anagram(' '.join(target))
 
         if not final:
             print("bad target")
@@ -846,6 +880,84 @@ def get_some_bad_anagrams(num=1):
         finalstr = ' '.join(final)
         targetstr = ' '.join(target)
         yield '`{}` is an anagram of `{}`'.format(targetstr, finalstr)
+
+
+def get_some_gamefaqs(num=1):
+    faqdir = os.path.join(cwd, 'txt', 'gamefaqs')
+    file_index_fn = os.path.join(faqdir, 'sizes.txt')  # du -ab | grep -E ".txt$" > sizes.txt
+    with open(file_index_fn) as f:
+        fsize_index = f.readlines()
+
+    sizes = []
+    # select files weighted by filesize
+    for line in fsize_index:
+        size, fn = line.split()
+        sizes.append( (fn, int(size)) )
+    tot = sum([x[1] for x in sizes])
+
+    while True:
+        r = random.randint(0, tot)
+        acc = 0
+        selected_fn = ''
+        for fn, size in sizes:
+            acc += size
+            if r <= acc:
+                selected_fn = fn
+                break
+        final_fn = os.path.join(faqdir, selected_fn)
+        pp = get_paragraph(final_fn)
+        if pp:
+            # ./6th/dreamcast/250618-resident-evil-code-veronica/faqs/250618-resident-evil-code-veronica-faqs-7455.txt
+            # ->
+            # dreamcast/250618-resident-evil-code-veronica-faqs-7455
+            console = selected_fn.split(os.path.sep)[2]
+            base = os.path.splitext( os.path.basename(selected_fn) )[0]
+            printable_path = f'{console}/{base}'
+            yield f'{printable_path}: ```{pp.replace('`', r'\`')}```'
+
+
+def get_paragraph(fn):
+    try:
+        with open(fn) as f:
+            text = f.read()
+    except UnicodeDecodeError:
+        return
+    paragraphs = re.findall(r'\n\n\s*\S.+?\n\n', text, re.DOTALL)
+    if paragraphs:
+        return random.choice(paragraphs).strip()
+
+
+def get_some_english(num=1):
+    fn = os.path.join(cwd, 'txt', '18thCdialectdict.txt')
+    with open(fn) as f:
+        termz = f.readlines()
+    random.shuffle(termz)
+    for l in termz:
+        yield l.strip()
+
+
+def get_some_rooms(num=1):
+    fn = os.path.join(cwd, 'txt', 'vagrantstory_rooms.txt')
+    level = ''
+    rooms = []
+    r = re.compile(r'^\s+\d+\s+\d+.+?\s(.+)$', re.M)
+    with open(fn) as f:
+        for line in f:
+            if not line.startswith(' '):
+                level = line.strip()
+            else:
+                roomline = line.strip()
+                if m := r.search(line):
+                    room = m.group(1)
+                    rooms.append((level, room))
+
+    random.shuffle(rooms)
+    for level, room in rooms:
+        room = room.strip()
+        if g_verbose:
+            yield f'{level}: {room}'
+        else:
+            yield room
 
 
 def format_lines(msg, maxwidth=80):
@@ -901,7 +1013,11 @@ g_thing_map = {
     'snowplows': get_some_snowplows,
     'stupidnames': get_some_stupidnames,
     'airports': get_some_airports,
-    'anagrams': get_some_bad_anagrams,
+    'anagrams': get_some_anagrams,
+    'movies': get_some_movies,
+    'faqs': get_some_gamefaqs,
+    'words': get_some_english,
+    'rooms': get_some_rooms,
 }
 
 
@@ -928,7 +1044,7 @@ def thingsay(arg: str) -> str:
     import string
     arg = ''.join( [c for c in arg if c in string.printable] )
     re_arg = re.search( r"\s*(.+?)\s+(\w+(?:\s+steps)?)", arg )
-    
+
     # set up some aliases (printable or otherwise)
     # printed
     thing_map['recipes'] = get_recipe_steps
@@ -936,7 +1052,7 @@ def thingsay(arg: str) -> str:
     # non-printed aliases
     thing_map['names'] = get_some_stupidnames
     thing_map['recipe'] = get_recipe_steps  # TODO above regex breaks 'recipe steps' etc. blahh
-    
+
     if not re_arg:
         # check for "!gimme things" case
         for thing in thing_map:
@@ -1012,11 +1128,27 @@ def thingsay(arg: str) -> str:
         )
     thingmax = int( math.ceil( thingnum ) )
     get_thing = getter(thingmax).__next__
+
     separator = ','
     if 'recipe' in things: separator = '.'
-    if 'problem' in things or 'anagram' in things:
-        printout += '\n *'
-        separator = '\n *'
+
+    print_as_list = False
+    to_print_as_list = (
+        'problem',
+        'anagram',
+        'movie',
+        'faq',
+    )
+    for plslist in to_print_as_list:
+        print_as_list |= (plslist in things)
+
+    if print_as_list:
+        if things == 'faqs':
+            printout += '\n'
+            separator = '\n'  # TODO why do discord lists render `` blocks differently when posted vs. in the edit box. grrr
+        else:
+            printout += '\n* '
+            separator = '\n* '
 
     # assemble the list
     thinglist = []
@@ -1029,9 +1161,8 @@ def thingsay(arg: str) -> str:
         i -= 1
     if thingnum <= 2:
         s = s.replace( separator, '' )
-    if thingnum > 1:
-        if 'recipe' not in things and 'problem' not in things and 'anagram' not in things:
-            s += 'and '
+    if thingnum > 1 and not print_as_list:
+        s += 'and '
     thing = get_thing()
     thinglist.append(thing)
     last_thing = formatter( thing )
@@ -1052,8 +1183,8 @@ def thingsay(arg: str) -> str:
     # be polite
     if politeness_enabled:
         s += polite_tag
-    # TODO: what's discord line length limit?
-    if len(s) > 999:
+    # TODO: what's discord line length limit? 2000 I think?
+    if len(s) > 999 and not print_as_list:
         s = '\r\n'.join(format_lines(s, 999))
     print("Bye! I'm returning: {!r}".format(s))
     return s

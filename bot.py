@@ -1,6 +1,6 @@
 """
 funny bot for plankton discord
-spoocecow 2021
+spoocecow 2021-*
 """
 import datetime
 import functools
@@ -18,8 +18,12 @@ from typing import List
 import discord
 from discord.ext import commands
 
+import anagramz
 import catread
+import funmid
+import midi2vox
 import thingbarf
+import worble
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -94,8 +98,8 @@ else:
 
 @bot.command(name='gimme')
 async def _thingbarf(ctx: commands.Context, *, line: str):
-   global jail
    """Get some examples of some number of things"""
+   global jail
    asker = ctx.author.name.lower()
    for f in dir(ctx.author):
       print("{}: {}".format(f, getattr(ctx.author,f)))
@@ -208,12 +212,27 @@ async def plot(ctx: commands.Context):
 async def funcat(ctx: commands.Context):
    """It's funcat."""
    await ctx.send(
-      r"""` _        /|__/\
+      r"""``` _        /|__/\
 //_______/ .  . \
 \  F    N    i  /
 \   _U____    |
 |  ||     |  ||
-|__\\     |__\\`"""
+|__\\     |__\\```"""
+   )
+
+@bot.command()
+async def copycat(ctx: commands.Context):
+   """It's copycat."""
+   await ctx.send(
+      r"""```                     ___________________
+                    /                   \    
+                   /    _        /|__/\  \  
+ _        /|__/\   |   //_______/ .  . \  |   
+//_______/ .  . \  |   \  F    N    i  /  |   
+\  F    N    i  / <    \   _U____    |    |  
+\   _U____    |    |   |  ||     |  ||    |   
+|  ||     |  ||     \  |__\\     |__\\   /     
+|__\\     |__\\      \__________________/```"""
    )
 
 
@@ -421,6 +440,110 @@ async def minesweep(ctx: commands.Context, *, line:str='9'):
    await ctx.send(msg)
 
 
+@bot.command('anagram')
+async def anagramtime(ctx: commands.Context, *, line: str):
+   """Generates some funey 'nag a ram's ;-D"""
+   if len(line) > 120 or len(line) <3:
+      await ctx.send("Be reasonable, {} 💔".format(thingbarf.get_dumdum()))
+      return
+   res = anagramz.get_anagram(line)
+   random.shuffle(res)
+   await ctx.send("`{}`".format(' '.join(res)))
+
+
+@bot.command('randomidi')
+async def randomidi(ctx: commands.Context):
+   """Klungo will tell you about a random MIDI from vgmusic"""
+   mididir = os.path.expanduser('~/Music/midis/music')
+   # this only takes like 100ms, good enough
+   if not os.path.exists('.midis.txt'):
+      try:
+         midis = subprocess.check_output(['find', mididir, '-name', '*.mid'])
+      except subprocess.CalledProcessError as ex:
+         midis = ex.output
+      with open('.midis.txt', 'w') as f:
+         f.write(midis.decode())
+
+   with open('.midis.txt') as f:
+      midis = f.readlines()
+
+   fn = os.path.join(mididir, random.choice(midis).strip())
+   midi = funmid.MidiFile(fn)
+   info = midi.to_simplynotes()
+   midistr = midi2vox.friendly_print(info, do_print=False)
+   intro = random.choice((
+      'Here is my favorite MIDI', 'This is my favorite MIDI in the world',
+      'Here is my favorite MIDI', 'This is my favorite MIDI in the world',
+      'There are no better MIDIs than this', 'This, in my estimation, is the best MIDI',
+      'I want to marry this MIDI', 'This MIDI is my best friend', 'Check this shit out',
+      'This MIDI is pretty good', 'I like this MIDI', 'Here is a good MIDI', 'Here is a fine MIDI',
+      'This MIDI is pretty good', 'I like this MIDI', 'Here is a good MIDI', 'Here is a fine MIDI',
+      'This MIDI is the GOAT (?)', 'This MIDI is the FOMO (??)', 'This MIDI is the GUH (???)',
+      'Here is a MIDI that rocks', 'Here is a MIDI that slaps', 'Here is a MIDI that whips ass',
+      'Here is a MIDI that rocks', 'Here is a MIDI that slaps', 'Here is a MIDI that whips ass',
+      'Want a good MIDI? How about this', 'Heh heh... Got a good MIDI for ya, stranger',
+      "Gyeh heh heh! Take this MIDI, but beware! I'm insane!!!! Gwaaa hah hah hah hah"
+   ))
+   msg = '{}: {}\n```{}```'.format(intro, os.path.basename(fn).replace('_', r'\_'), midistr)
+   await ctx.send(msg)
+   await ctx.send(file=discord.File(fn))
+
+
+@bot.command('wordle')
+async def wordle(ctx: commands.Context, *, line: str):
+    """Klungo plays wordle against himself"""
+    affirmations = (
+        'i can play wordle.',
+        'i CAN play wordle.',
+        'i can play wordle...?',
+        'i like wordle.',
+        'i like to play wordle :)',
+        "wordle :) it's the game for me :)",
+        "let's wordle!",
+        "it's time to wordle",
+    )
+    geniuswords = (
+        "Brain Genius Mode Activated...",
+        "Right Now I am a brain wizard",
+        "Genius Mode: ENGAGED",
+        "me smart >:D",
+    )
+    imstupid = (
+        "Duhhh I'm stumped. I'm soooo stupid I don't know!!!!!!!",
+        "I don't know! I don't know!!!",
+        "Uhhhhhhhhhhhhhhhh?????????????????",
+        "UHHHHHHHHHHHHHH",
+        "I'm stupid I don't know any words :("
+    )
+    laments = (
+        "Darn.",
+        "Drat.",
+        "Shucks.",
+        "FUck!!!",
+        "ugg.",
+        "ugh.",
+        "darn.",
+        "shoot.",
+    )
+    fmtstr = '{affirmation}\n' + worble.play()
+    await ctx.send(fmtstr.format(
+        affirmation=random.choice(affirmations),
+        idiot=random.choice(imstupid),
+        genius=random.choice(geniuswords),
+        stumped=random.choice(imstupid),
+        lament=random.choice(laments) + " The secret word was:"
+    ))
+    if 'stat' in line:
+        await ctx.send(worble.print_stats())
+
+
+
+@bot.command('grunty')
+async def grunty(ctx: commands.Context):
+   """This is not done (or even started)"""
+   # TODO
+   await ctx.send("someday I will implement this?")
+
 
 @bot.event
 async def on_ready():
@@ -441,7 +564,7 @@ async def twisted_talky(message: discord.Message):
          await message.channel.send('>:D')
 
 
-g_wiggle_detector = re.compile('.*'.join('wigglethatdumpstermachine'))
+g_wiggle_detector = re.compile('.*?'.join('wigglethatdumpstermachine'))
 
 
 @bot.listen('on_message')
@@ -464,7 +587,11 @@ async def talky(message: discord.Message):
       await message.channel.send( get_klungo_greet(message) )
    elif 'klungo' in message.content.lower():
       # markov bot time wahahwthtyy
-      msg = get_markov_fun(message.content.replace('klungo', '').replace('Klungo', '').lstrip(' ,.:!-').rstrip(' ,'))
+      msg = ''
+      tries = 3
+      while (not msg) and (tries > 0):
+         msg = get_markov_fun(message.content.replace('klungo', '').replace('Klungo', '').lstrip(' ,.:!-').rstrip(' ,'))
+         tries -= 1
       if msg:
          if msg.startswith('ACTION '):
             msg = msg.replace('ACTION ', '/me ')  # TODO hey this doesn't work. whadda heck I gota do discord.py???
