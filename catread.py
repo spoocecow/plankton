@@ -179,7 +179,7 @@ def get_catread(data=None):
                 return ''
     if msg.startswith('\n'):
         msg = msg[1:]
-    while re.match('^\s+$', msg, re.MULTILINE | re.UNICODE):
+    while re.match(r'^\s+$', msg, re.MULTILINE | re.UNICODE):
         msg = msg[msg.find('\n')+1:]
     return msg
 

@@ -490,7 +490,7 @@ async def randomidi(ctx: commands.Context):
 
 
 @bot.command('wordle')
-async def wordle(ctx: commands.Context, *, line: str):
+async def wordle(ctx: commands.Context, *, line:str=''):
     """Klungo plays wordle against himself"""
     affirmations = (
         'i can play wordle.',
