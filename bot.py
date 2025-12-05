@@ -443,7 +443,7 @@ async def minesweep(ctx: commands.Context, *, line:str='9'):
 @bot.command('anagram')
 async def anagramtime(ctx: commands.Context, *, line: str):
    """Generates some funey 'nag a ram's ;-D"""
-   if len(line) > 120 or len(line) <3:
+   if len(line) > 200 or len(line) <3:
       await ctx.send("Be reasonable, {} 💔".format(thingbarf.get_dumdum()))
       return
    res = anagramz.get_anagram(line)
@@ -525,7 +525,7 @@ async def wordle(ctx: commands.Context, *, line:str=''):
         "darn.",
         "shoot.",
     )
-    fmtstr = '{affirmation}\n' + worble.play()
+    fmtstr = '{affirmation}\n' + worble.autoplay()
     await ctx.send(fmtstr.format(
         affirmation=random.choice(affirmations),
         idiot=random.choice(imstupid),
@@ -536,7 +536,11 @@ async def wordle(ctx: commands.Context, *, line:str=''):
     if 'stat' in line:
         await ctx.send(worble.print_stats())
 
-
+@bot.command('klungordle')
+async def klungordle(ctx: commands.Context, *, line:str=''):
+    """Klungo plays wordle against a chatter :O"""
+    player = ctx.author
+    await ctx.send( worble.play(player.display_name, line) )
 
 @bot.command('grunty')
 async def grunty(ctx: commands.Context):
@@ -581,6 +585,8 @@ async def wiggle_detector(message: discord.Message):
 async def talky(message: discord.Message):
    """Respond to people talking to us with markov/gpt/somethin'"""
    if message.author == bot.user:
+      return
+   elif 'klungordle' in message.content:
       return
 
    if message.content.lower() == 'klungo':

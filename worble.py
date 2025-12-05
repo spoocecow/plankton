@@ -1,3 +1,4 @@
+import json
 import math
 import os
 import random
@@ -12,29 +13,21 @@ def has_digits(_str):
          return True
    return False
 
-def make_lookup() -> dict[str, list]:
-    return {l: [] for l in string.ascii_uppercase}
+def valid(_str:str) -> bool:
+    for c in _str.upper():
+        if c not in string.ascii_uppercase:
+            return False
+    return True
 
 g_words:list[str] = []
-g_index = [
-    make_lookup(),
-    make_lookup(),
-    make_lookup(),
-    make_lookup(),
-    make_lookup(),
-]
 g_smart = random.random() < 0.69
 
-def load():
+def load(wordlist:str=os.path.join('txt', 'wordlist.txt')):
     global g_words
-    global g_index
 
-    with open(os.path.join('txt', 'wordlist.txt')) as f:
-        g_words = [l.strip().upper() for l in f.readlines() if (not l.startswith('#')) and (not has_digits(l)) and len(l.strip()) == 5]
+    with open(wordlist) as f:
+        g_words = [l.strip().upper() for l in f.readlines() if (not l.startswith('#')) and valid(l.strip()) and len(l.strip()) == 5]
 
-    for word in g_words:
-        for i, letter in enumerate(word):
-            g_index[i][letter].append(word)
 
 def candidates(mask:str='.....', contains:str='', excludes:str='') -> Generator[str, Any, None]:
     # hard mode assumed for now
@@ -173,15 +166,15 @@ def eval_guess2(secret:str, guess:str) -> (str, str, str, str):
 
     return mask, contains, excludes, printout
 
+g_default_stats = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 'Stumpers': 0}
 
 def update_stats(guesses, success, query_only=False) ->  dict[int | str, int]:
-    import json
     fn = '.worble_stats.json'
     if os.path.exists(fn):
         with open(fn) as f:
             data = json.load(f)
     else:
-        data = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 'Stumpers': 0}
+        data = g_default_stats.copy()
 
     if not query_only:
         if success:
@@ -207,7 +200,7 @@ def print_stats() -> str:
     return s
 
 
-def play() -> str:
+def autoplay() -> str:
     global g_words
     global g_smart
     g_smart = random.random() < 0.8
@@ -251,3 +244,78 @@ def play() -> str:
     final_str += "{lament}\n" + f"||`{secret}`||"
     update_stats(69, False)
     return final_str
+
+state_fn = '.worble_state.json'
+
+default_state = {
+    'guesses': 0,
+    'history': [],
+    'secret': '',
+    'hof': {},
+}
+g_state = default_state.copy()
+
+def get_state():
+    if not os.path.exists(state_fn):
+        return default_state
+    with open(state_fn) as state_f:
+        return json.load(state_f)
+
+def save_state(state:dict):
+    with open(state_fn, 'w+') as f:
+        json.dump(state, f)
+
+def reset_state(state:dict) -> dict:
+    s = state.copy()
+    s['history'] = []
+    s['guesses'] = 0
+    s['secret'] = ''
+    return s
+
+def play(player:str, line:str) -> str:
+    global g_state
+    g_state = get_state()
+    load('/usr/share/dict/american-english')  # Vorpy will summon a meteor on me if I use my regular wordlist here. hey vorpy. this ships with linux. you can't get mad at me for this. or you shouldn't, anyway. you can still get mad if you want to. i'm not the police.
+    rs = ''
+    if not g_state['secret'] or g_state['guesses'] <= 0:
+        g_state['secret'] = random.choice(g_words)
+    secret = g_state['secret']
+    try:
+        if m := re.search(r"([A-Z)]{5})", line.upper()):
+            guess = m.group(1)
+            g_state['guesses'] += 1
+            mask, cont, excl, rs = eval_guess2(secret, guess)
+            if guess == secret:
+                rs += f"\nCongratulations, {player}!"
+                g_state = reset_state(g_state)
+                if player not in g_state['hof']:
+                    g_state['hof'][player] = 0
+                g_state['hof'][player] += 1
+            elif g_state['guesses'] >= 6:
+                rs += f"\nSory {player} that sux. it was ||{secret}||"
+                g_state = reset_state(g_state)
+            else:
+                g_state['history'].append( (guess, mask, cont, excl) )
+                excludes = ''.join([e.replace('.', '') for (_, _, _, e) in g_state['history']])
+                legal = list(candidates(mask, cont.replace('.', ''), excludes))
+                for cand in legal[:]:
+                    ok = True
+                    for prev_guess, _, prev_contains, prev_excls in g_state['history']:
+                        # ensure not a repeat guess
+                        if prev_guess == cand:
+                            ok = False
+                            break
+                        # yellow-space guesses
+                        if prev_contains != '.....' and re.match(prev_contains, cand):
+                            ok = False
+                        # blank space guesses
+                        if prev_excls != '.....' and re.match(prev_excls, cand):
+                            ok = False
+                    if not ok:
+                        legal.remove(cand)
+                rs += f" ||btw: you have {len(legal)} options if u play by hard mode rules||"
+        else:
+            rs = 'what u guess ?'
+        return rs
+    finally:
+        save_state(g_state)
