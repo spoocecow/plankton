@@ -248,6 +248,7 @@ def autoplay() -> str:
 state_fn = '.worble_state.json'
 
 default_state = {
+    'number': 0,
     'guesses': 0,
     'history': [],
     'secret': '',
@@ -269,6 +270,8 @@ def reset_state(state:dict) -> dict:
     s = state.copy()
     s['history'] = []
     s['guesses'] = 0
+    if 'number' not in s:
+       s['number'] = 0
     s['secret'] = ''
     return s
 
@@ -281,16 +284,18 @@ def play(player:str, line:str) -> str:
         g_state['secret'] = random.choice(g_words)
     secret = g_state['secret']
     try:
-        if m := re.search(r"([A-Z)]{5})", line.upper()):
+        if m := re.search(r"\W?([A-Z)]{5})\W?", line.upper()):
             guess = m.group(1)
             g_state['guesses'] += 1
             mask, cont, excl, rs = eval_guess2(secret, guess)
+            rs = f"{g_state['guesses']} {rs}"
             if guess == secret:
                 rs += f"\nCongratulations, {player}!"
                 g_state = reset_state(g_state)
                 if player not in g_state['hof']:
                     g_state['hof'][player] = 0
                 g_state['hof'][player] += 1
+                g_state['number'] += 1
             elif g_state['guesses'] >= 6:
                 rs += f"\nSory {player} that sux. it was ||{secret}||"
                 g_state = reset_state(g_state)
