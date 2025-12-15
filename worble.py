@@ -135,14 +135,39 @@ def eval_guess2(secret:str, guess:str) -> (str, str, str, str):
 
     for i, (sc, gc) in enumerate(zip(secret, guess)):
         if sc == gc:
+            # correct, green square dat sucka
             mask += sc
             contains += '.'
             excludes += '.'
-            printout += '🟩'
+            printout += '🟩'  # green
         elif gc in secret:
             # yellows are hard (cannot dupe with other matches)...
             #temp_contains[gc].append(gc)
             mask += '.'
+
+            letter_elsewhere = False
+            for ii, (ss,gg) in enumerate(zip(secret, guess)):
+                if ii == i:
+                    # we're checking this letter (index) in the outer loop
+                    continue
+                if ss == gc == gg:
+                    # correct guess, we'll catch that in the first `if sc == gc` above
+                    continue
+                elif ss == gc:
+                    # the guessed letter appears somewhere else in the secret :O
+                    letter_elsewhere = True
+                    break
+                else:
+                    # this letter in the secret is not what was guessed, don't care
+                    continue
+
+            if letter_elsewhere:
+                contains += gc
+                printout += '🟨'  # yellow
+            else:
+                contains += '.'
+                printout += '⬛'  # black
+            continue
 
             letter_isnt_also_correct_elsewhere = True
             for ii, (ss,gg) in enumerate(zip(secret, guess)):
@@ -162,7 +187,7 @@ def eval_guess2(secret:str, guess:str) -> (str, str, str, str):
             mask += '.'
             contains += '.'
             excludes += gc
-            printout += '⬛'
+            printout += '⬛'  # black
 
     return mask, contains, excludes, printout
 
