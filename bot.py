@@ -534,13 +534,16 @@ async def wordle(ctx: commands.Context, *, line:str=''):
         lament=random.choice(laments) + " The secret word was:"
     ))
     if 'stat' in line:
-        await ctx.send(worble.print_stats())
+        await ctx.send(worble.print_stats('Klungo'))
 
 @bot.command('klungordle')
 async def klungordle(ctx: commands.Context, *, line:str=''):
     """Klungo plays wordle against a chatter :O"""
     player = ctx.author
-    await ctx.send( worble.play(player.display_name, line) )
+    if line.strip().endswith('stats please'):
+        await ctx.send( worble.print_all_stats() )
+    else:
+        await ctx.send( worble.play(player.display_name, line) )
 
 @bot.command('grunty')
 async def grunty(ctx: commands.Context):

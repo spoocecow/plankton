@@ -22,6 +22,7 @@ def valid(_str:str) -> bool:
 g_words:list[str] = []
 g_width = 5
 g_smart = random.random() < 0.69
+STUMPED = 'Stumpers'
 
 def load(wordlist:str=os.path.join('txt', 'wordlist.txt'), width=g_width):
     global g_words
@@ -80,9 +81,12 @@ def pick(mask:str='.....', contains:str='', excludes:str='') -> str:
     return random.choice(tuple(candidates(mask, contains, excludes)))
 
 def pick2(history:list[tuple[str,str,str,str]]=[]) -> str:
-    _, mask, contains, excls = history[-1]
-    excludes = ''.join([e.replace('.', '') for (_,_,_,e) in history])
-    legal = list(candidates(mask, contains.replace('.', ''), excludes))
+    if history:
+        _, mask, contains, excls = history[-1]
+        excludes = ''.join([e.replace('.', '') for (_,_,_,e) in history])
+        legal = list(candidates(mask, contains.replace('.', ''), excludes))
+    else:
+        legal = list(candidates())
     # for prev_guess, _, prev_contains, _ in history:
     #     # never guess the same word again
     #     if prev_guess in legal:
@@ -208,17 +212,17 @@ def eval_guess2(secret:str, guess:str) -> (str, str, str, str):
 
     return mask, contains, excludes, printout
 
-g_default_stats = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 'Stumpers': 0}
+g_default_stats = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, STUMPED: 0}
 
 def update_stats(player, guesses):
     if player not in g_state['hof']:
         g_state['hof'][player] = g_default_stats.copy()
-    if guesses > 6:
-        guesses = 'Stumpers'
-    g_state['hof']['player'][guesses] += 1
+    if isinstance(guesses, int) and guesses > 6:
+        guesses = STUMPED
+    g_state['hof'][player][guesses] += 1
     save_state(g_state)
 
-def print_stats(player='Klungo') -> str:
+def print_stats(player:str) -> str:
     if 'hof' not in g_state:
         return "No one played ever :("
     if player not in g_state['hof']:
@@ -228,14 +232,28 @@ def print_stats(player='Klungo') -> str:
     s = ""
     w = int(math.log10(total_plays))
     for g, t in sorted(stats.items()):
-        if g != 'Stumpers':
+        if g != STUMPED:
             s += f"{g}/6: {t:0{w}} ({(t/total_plays)*100:.3}%)\n"
         else:
             s += f"???: {t:0{w}} ({(t/total_plays)*100:.3}%)\n"
     s += f"Tot: {total_plays}\n"
-    s += f"Win: {((total_plays - stats['Stumpers'])/total_plays)*100:.3}%"
+    s += f"Win: {((total_plays - stats[STUMPED])/total_plays)*100:.3}%"
     return s
 
+def print_all_stats() -> str:
+    if 'hof' not in g_state:
+        return "No one played ever :("
+    retval = ''
+    tot_plays = tot_wins = 0
+    for player in sorted(g_state['hof']):
+        retval += player + ':\n'
+        retval += print_stats(player).replace('\n', '\n\t') + '\n'
+        statz = g_state['hof'][player]
+        tot_plays += sum(statz.values())
+        tot_wins += sum(statz.values()) - statz[STUMPED]
+    retval += f"OVERALL PLAYS: {tot_plays}\n"
+    retval += f"OVERALL WIN%:  {((tot_plays - tot_wins)/tot_plays)*100:.3}%"
+    return retval
 
 def autoplay() -> str:
     global g_words
@@ -275,11 +293,11 @@ def autoplay() -> str:
             guess = pick2(history)
         except IndexError:
             final_str += "{stumped}\n"
-            update_stats('Klungo', 'Stumpers')
+            update_stats('Klungo', STUMPED)
             break
         rounds += 1
     final_str += "{lament}\n" + f"||`{secret}`||"
-    update_stats('Klungo', 'Stumpers')
+    update_stats('Klungo', STUMPED)
     return final_str
 
 state_fn = '.worble_state.json'
@@ -379,6 +397,7 @@ def play_round(secret, guess, state=None) -> tuple[bool|None, str, dict]:
 
 def play(player:str, line:str) -> str:
     global g_state
+    global g_width
     g_state = get_state()
     retval = ''
     if m := re.search(r"\W?([A-Z)]{5,})\W?", line.upper()):
@@ -387,7 +406,6 @@ def play(player:str, line:str) -> str:
         return 'what u guess ?'
 
     if not g_state['secret'] or g_state['guesses'] <= 0:
-        global g_width
         secret = ''
         width = len(guess)
         load('/usr/share/dict/american-english', width)  # Vorpy will summon a meteor on me if I use my regular wordlist here. hey vorpy. this ships with linux. you can't get mad at me for this. or you shouldn't, anyway. you can still get mad if you want to. i'm not the police.
@@ -401,12 +419,18 @@ def play(player:str, line:str) -> str:
             retval += "Wow u brave... Brave Mode Enabled. brave mode turn on. we get signal...\n"
     else:
         secret = g_state['secret']
+        g_width = len(secret)
+        if not g_words:
+            load('/usr/share/dict/american-english', g_width)
 
     if len(guess) < len(secret):
         return f'Current secret is {len(secret)} letters, u only guessed {len(guess)} u silly billy'
 
     if len(secret) > 5 and guess not in g_words:
-        example = pick2(g_state['history'])
+        try:
+            example = pick2(g_state['history'])
+        except IndexError:
+            example = pick2()
         return f"BRAVERY REQUIRES A PRICE. YOU MUST GUESS WORDS I RECOGNIZE. ||May I suggest {example}?||"
 
     g_state['guesses'] += 1
@@ -420,7 +444,7 @@ def play(player:str, line:str) -> str:
             g_state = reset_state(g_state)
         elif g_state['guesses'] >= 6:
             retval += f"\nSory {player} that sux. it was ||{secret}||"
-            update_stats(player, 'Stumpers')
+            update_stats(player, STUMPED)
             g_state['number'] += 1
             g_state = reset_state(g_state)
         else:
