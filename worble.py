@@ -20,13 +20,15 @@ def valid(_str:str) -> bool:
     return True
 
 g_words:list[str] = []
+g_width = 5
 g_smart = random.random() < 0.69
 
-def load(wordlist:str=os.path.join('txt', 'wordlist.txt')):
+def load(wordlist:str=os.path.join('txt', 'wordlist.txt'), width=g_width):
     global g_words
 
     with open(wordlist) as f:
-        g_words = [l.strip().upper() for l in f.readlines() if (not l.startswith('#')) and valid(l.strip()) and len(l.strip()) == 5]
+        # set() construction is to remove duplicates (e.g. 'Jewel' and 'jewel' are both in american-english)
+        g_words = list(set([l.strip().upper() for l in f.readlines() if (not l.startswith('#')) and valid(l.strip()) and len(l.strip()) == width]))
 
 
 def candidates(mask:str='.....', contains:str='', excludes:str='') -> Generator[str, Any, None]:
@@ -131,9 +133,40 @@ def eval_guess(secret:str, guess:str) -> (str, str, str, str):
     return mask, contains, excludes, printout
 
 def eval_guess2(secret:str, guess:str) -> (str, str, str, str):
-    mask, contains, excludes, printout = '', '', '', ''
+    blank = [' '] * g_width
+    mask, contains, excludes, printout = blank[:], blank[:], blank[:], blank[:]
+    secret_copy = list(secret)
+
+    # first pass: green and black
+    for i, (sc, gc) in enumerate(zip(secret, guess)):
+        if sc == gc:
+            # correct, green square dat sucka
+            mask[i] = sc
+            contains[i] = '.'
+            excludes[i] = '.'
+            printout[i] = '🟩'  # green
+            secret_copy[i] = '.'  # remove correct letters for subsequent yellow pass
+        else:
+            # incorrect, could be yellow or black - default to black for now
+            mask[i] = '.'
+            contains[i] = '.'
+            if gc not in secret:
+                # this guessed character doesn't appear in secret
+                excludes[i] = gc
+            printout[i] = '⬛'  # black
+
+    # second pass: yellows
+    for i, gc in enumerate(guess):
+        if gc in secret_copy:
+            contains[i] = gc
+            excludes[i] = '.'
+            printout[i] = '🟨'  # yellow
+            secret_copy[secret_copy.index(gc)] = '.'  # remove left-to-right (this is my arbitrary choice, I don't know what the real game does) for subsequent guesses
+
+    return ''.join(mask), ''.join(contains), ''.join(excludes), ''.join(printout)
 
     for i, (sc, gc) in enumerate(zip(secret, guess)):
+
         if sc == gc:
             # correct, green square dat sucka
             mask += sc
@@ -167,22 +200,6 @@ def eval_guess2(secret:str, guess:str) -> (str, str, str, str):
             else:
                 contains += '.'
                 printout += '⬛'  # black
-            continue
-
-            letter_isnt_also_correct_elsewhere = True
-            for ii, (ss,gg) in enumerate(zip(secret, guess)):
-                if ii == i:
-                    continue
-                if ss == gc == gg:
-                    letter_isnt_also_correct_elsewhere = False
-                    break
-            if letter_isnt_also_correct_elsewhere:
-            #if (mask.count(gc) + contains.count(gc)) < secret.count(gc):
-                contains += gc
-            else:
-                contains += '.'
-            excludes += '.'
-            printout += '🟨'
         else:
             mask += '.'
             contains += '.'
@@ -193,25 +210,20 @@ def eval_guess2(secret:str, guess:str) -> (str, str, str, str):
 
 g_default_stats = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 'Stumpers': 0}
 
-def update_stats(guesses, success, query_only=False) ->  dict[int | str, int]:
-    fn = '.worble_stats.json'
-    if os.path.exists(fn):
-        with open(fn) as f:
-            data = json.load(f)
-    else:
-        data = g_default_stats.copy()
+def update_stats(player, guesses):
+    if player not in g_state['hof']:
+        g_state['hof'][player] = g_default_stats.copy()
+    if guesses > 6:
+        guesses = 'Stumpers'
+    g_state['hof']['player'][guesses] += 1
+    save_state(g_state)
 
-    if not query_only:
-        if success:
-            data[str(guesses)] += 1
-        else:
-            data['Stumpers'] += 1
-        with open(fn, 'w+') as f:
-            json.dump(data, f)
-    return data
-
-def print_stats() -> str:
-    stats = update_stats(0,0, query_only=True)
+def print_stats(player='Klungo') -> str:
+    if 'hof' not in g_state:
+        return "No one played ever :("
+    if player not in g_state['hof']:
+        return f"{player} never played ever :("
+    stats = g_state['hof'][player]
     total_plays = sum(stats.values())
     s = ""
     w = int(math.log10(total_plays))
@@ -230,7 +242,7 @@ def autoplay() -> str:
     global g_smart
     g_smart = random.random() < 0.8
     load()
-    random.shuffle(g_words)
+    #random.shuffle(g_words)
     secret = random.choice(g_words)
     # a good first guess shouldn't repeat letters
     if g_smart:
@@ -254,7 +266,7 @@ def autoplay() -> str:
         mask, cont, excl, round_str = eval_guess2(secret, guess)
         final_str += f"||`{guess}`||  {round_str}\n"
         if guess == secret:
-            update_stats(rounds+1, True)
+            update_stats('Klungo', rounds+1)
             return final_str
         history.append((guess, mask, cont, excl))
         excludes += excl
@@ -263,11 +275,11 @@ def autoplay() -> str:
             guess = pick2(history)
         except IndexError:
             final_str += "{stumped}\n"
-            update_stats(rounds + 1, False)
+            update_stats('Klungo', 'Stumpers')
             break
         rounds += 1
     final_str += "{lament}\n" + f"||`{secret}`||"
-    update_stats(69, False)
+    update_stats('Klungo', 'Stumpers')
     return final_str
 
 state_fn = '.worble_state.json'
@@ -293,59 +305,145 @@ def save_state(state:dict):
 
 def reset_state(state:dict) -> dict:
     s = state.copy()
-    s['history'] = []
+    s['history'] = list()
     s['guesses'] = 0
     if 'number' not in s:
        s['number'] = 0
     s['secret'] = ''
     return s
 
+def clear_persistent_state():
+    save_state(default_state)
+
+def avail_guessos(guess:str) -> tuple[int,str]:
+    best = 9999999999
+    bestw = '?????'
+    load('/usr/share/dict/american-english')
+    for w in g_words:
+        mask, cont, excl, rs = eval_guess2(w, guess)
+        legal = list(candidates(mask, cont.replace('.', ''), excl))
+        for cand in legal[:]:
+            ok = True
+            # yellow-space guesses
+            if cont != '.....' and re.match(cont, cand):
+                ok = False
+            # blank space guesses
+            if excl != '.....' and re.match(excl, cand):
+                ok = False
+            if not ok:
+                legal.remove(cand)
+        if len(legal) < best:
+            best = len(legal)
+            bestw = w
+    return best, bestw
+
+def play_round(secret, guess, state=None) -> tuple[bool|None, str, dict]:
+    if not state:
+        state = default_state.copy()
+        state['secret'] = secret
+    if not g_words:
+        global g_width
+        g_width = len(secret)
+        load('usr/share/dict/american-english', g_width)
+    m,c,e,r = eval_guess2(secret, guess)
+    state['guesses'] += 1
+    rs = f"{state['guesses']} {r}"
+    if guess == secret:
+        state['number'] += 1
+        return True, "Congratulations, {player}!", state
+    elif state['guesses'] >= 6:
+        state['number'] += 1
+        return False, f"Sory {{player}} that sux. it was ||{secret}||", state
+    else:
+        state['history'].append((guess, m, c, e))
+        excludes = ''.join([e.replace('.', '') for (_, _, _, e) in state['history']])
+        state['total_excludes'] = excludes
+        legal = list(candidates(m, c.replace('.', ''), excludes))
+        for cand in legal[:]:
+            ok = True
+            for prev_guess, _, prev_contains, prev_excls in state['history']:
+                # ensure not a repeat guess
+                if prev_guess == cand:
+                    ok = False
+                    break
+                # yellow-space guesses
+                if prev_contains != '.....' and re.match(prev_contains, cand):
+                    ok = False
+                # blank space guesses
+                if prev_excls != '.....' and re.match(prev_excls, cand):
+                    ok = False
+            if not ok:
+                legal.remove(cand)
+        state['options'] = legal[:]
+        return None, rs + f"||btw: you have {len(legal)} options||", state
+
 def play(player:str, line:str) -> str:
     global g_state
     g_state = get_state()
-    load('/usr/share/dict/american-english')  # Vorpy will summon a meteor on me if I use my regular wordlist here. hey vorpy. this ships with linux. you can't get mad at me for this. or you shouldn't, anyway. you can still get mad if you want to. i'm not the police.
-    rs = ''
+    retval = ''
+    if m := re.search(r"\W?([A-Z)]{5,})\W?", line.upper()):
+        guess = m.group(1)
+    else:
+        return 'what u guess ?'
+
     if not g_state['secret'] or g_state['guesses'] <= 0:
-        g_state['secret'] = random.choice(g_words)
-    secret = g_state['secret']
-    try:
-        if m := re.search(r"\W?([A-Z)]{5})\W?", line.upper()):
-            guess = m.group(1)
-            g_state['guesses'] += 1
-            mask, cont, excl, rs = eval_guess2(secret, guess)
-            rs = f"{g_state['guesses']} {rs}"
-            if guess == secret:
-                rs += f"\nCongratulations, {player}!"
-                g_state = reset_state(g_state)
-                if player not in g_state['hof']:
-                    g_state['hof'][player] = 0
-                g_state['hof'][player] += 1
-                g_state['number'] += 1
-            elif g_state['guesses'] >= 6:
-                rs += f"\nSory {player} that sux. it was ||{secret}||"
-                g_state = reset_state(g_state)
-            else:
-                g_state['history'].append( (guess, mask, cont, excl) )
-                excludes = ''.join([e.replace('.', '') for (_, _, _, e) in g_state['history']])
-                legal = list(candidates(mask, cont.replace('.', ''), excludes))
-                for cand in legal[:]:
-                    ok = True
-                    for prev_guess, _, prev_contains, prev_excls in g_state['history']:
-                        # ensure not a repeat guess
-                        if prev_guess == cand:
-                            ok = False
-                            break
-                        # yellow-space guesses
-                        if prev_contains != '.....' and re.match(prev_contains, cand):
-                            ok = False
-                        # blank space guesses
-                        if prev_excls != '.....' and re.match(prev_excls, cand):
-                            ok = False
-                    if not ok:
-                        legal.remove(cand)
-                rs += f" ||btw: you have {len(legal)} options if u play by hard mode rules||"
+        global g_width
+        secret = ''
+        width = len(guess)
+        load('/usr/share/dict/american-english', width)  # Vorpy will summon a meteor on me if I use my regular wordlist here. hey vorpy. this ships with linux. you can't get mad at me for this. or you shouldn't, anyway. you can still get mad if you want to. i'm not the police.
+        if len(g_words) > 0:
+            secret = random.choice(g_words)
         else:
-            rs = 'what u guess ?'
-        return rs
+            return "No words are that long (I recommend MAX 12-13 for variety's sake). anyway go 2 hell"
+        g_width = width
+        g_state['secret'] = secret
+        if g_width > 5:
+            retval += "Wow u brave... Brave Mode Enabled. brave mode turn on. we get signal...\n"
+    else:
+        secret = g_state['secret']
+
+    if len(guess) < len(secret):
+        return f'Current secret is {len(secret)} letters, u only guessed {len(guess)} u silly billy'
+
+    if len(secret) > 5 and guess not in g_words:
+        example = pick2(g_state['history'])
+        return f"BRAVERY REQUIRES A PRICE. YOU MUST GUESS WORDS I RECOGNIZE. ||May I suggest {example}?||"
+
+    g_state['guesses'] += 1
+    try:
+        mask, cont, excl, rs = eval_guess2(secret, guess)
+        retval += f"{g_state['guesses']} {rs}"
+        if guess == secret:
+            retval += f"\nCongratulations, {player}!"
+            update_stats(player, g_state['guesses'])
+            g_state['number'] += 1
+            g_state = reset_state(g_state)
+        elif g_state['guesses'] >= 6:
+            retval += f"\nSory {player} that sux. it was ||{secret}||"
+            update_stats(player, 'Stumpers')
+            g_state['number'] += 1
+            g_state = reset_state(g_state)
+        else:
+            g_state['history'].append( (guess, mask, cont, excl) )
+            excludes = ''.join([e.replace('.', '') for (_, _, _, e) in g_state['history']])
+            g_state['total_excludes'] = excludes
+            legal = list(candidates(mask, cont.replace('.', ''), excludes))
+            for cand in legal[:]:
+                ok = True
+                for prev_guess, _, prev_contains, prev_excls in g_state['history']:
+                    # ensure not a repeat guess
+                    if prev_guess == cand:
+                        ok = False
+                        break
+                    # yellow-space guesses
+                    if prev_contains != '.....' and re.match(prev_contains, cand):
+                        ok = False
+                    # blank space guesses
+                    if prev_excls != '.....' and re.match(prev_excls, cand):
+                        ok = False
+                if not ok:
+                    legal.remove(cand)
+            retval += f" ||btw: you have {len(legal)} options if u play by hard mode rules||"
+        return retval
     finally:
         save_state(g_state)
