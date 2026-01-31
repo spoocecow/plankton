@@ -489,7 +489,7 @@ async def randomidi(ctx: commands.Context):
    await ctx.send(file=discord.File(fn))
 
 
-@bot.command('wordle')
+@bot.command('autoklungordle')
 async def wordle(ctx: commands.Context, *, line:str=''):
     """Klungo plays wordle against himself"""
     affirmations = (
@@ -544,6 +544,11 @@ async def klungordle(ctx: commands.Context, *, line:str=''):
         await ctx.send( worble.print_all_stats() )
     else:
         await ctx.send( worble.play(player.display_name, line) )
+
+@bot.command('wordle')
+async def wordle(ctx: commands.Context, *, line:str=''):
+   """BLEAHHH!!!!!"""
+   await klungordle(ctx, line=line)
 
 @bot.command('grunty')
 async def grunty(ctx: commands.Context):

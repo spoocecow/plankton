@@ -879,7 +879,10 @@ def get_some_anagrams(num=1):
         random.shuffle(final)
         finalstr = ' '.join(final)
         targetstr = ' '.join(target)
-        yield '`{}` is an anagram of `{}`'.format(targetstr, finalstr)
+        left, right = finalstr, targetstr
+        if random.random() > 0.5:
+            right, left = left, right
+        yield '`{}` is an anagram of `{}`'.format(left, right)
 
 
 def get_some_gamefaqs(num=1):
