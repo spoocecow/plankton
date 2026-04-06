@@ -201,7 +201,7 @@ def print_stats(player:str) -> str:
         else:
             s += f"???: {t:0{w}} ({(t/total_plays)*100:.3}%)\n"
     s += f"Tot: {total_plays}\n"
-    s += f"Win: {((total_plays - stats[STUMPED])/total_plays)*100:.3}%"
+    s += f"Win: {((total_plays - stats[STUMPED])/(total_plays or 1))*100:.3}%"
     return s
 
 def print_all_stats() -> str:
@@ -216,7 +216,7 @@ def print_all_stats() -> str:
         tot_plays += sum(statz.values())
         tot_wins += sum(statz.values()) - statz[STUMPED]
     retval += f"OVERALL PLAYS: {tot_plays}\n"
-    retval += f"OVERALL WIN%:  {((tot_plays - tot_wins)/tot_plays)*100:.3}%"
+    retval += f"OVERALL WIN%:  {((tot_plays - tot_wins)/(tot_plays or 1))*100:.3}%"
     return retval
 
 def autoplay() -> str:

@@ -13,6 +13,8 @@ import re
 import time
 import zipfile
 
+import markov
+
 _thisfile = inspect.getfile( inspect.currentframe() )
 cwd = os.path.dirname( os.path.abspath( _thisfile ) )
 # https://github.com/dariusk/corpora
@@ -761,6 +763,22 @@ def get_some_stupidnames(num=1):
         else:
             yield name.split(',')[0].strip() + post
 
+def get_some_newpidnames(num=1):
+    with open(os.path.join(cwd, 'txt', 'plot', 'stupidnames.txt'), encoding='utf-8') as names_f:
+        names = names_f.readlines()
+    name_chronos = {name: i for i, name in enumerate(names)}
+    lucky = random.random() < 0.501
+    N = len(names)
+    for name in random.choices(names, weights=range(N), k=num):
+        post = ''
+        if lucky:
+            post = ' _(#{})_'.format(name_chronos[name]+1)
+        if (',' in name) and g_verbose:
+            n, rest = name.split(',')
+            yield '{} _({})_'.format(n.strip(), rest.strip()) + post
+        else:
+            yield name.split(',')[0].strip() + post
+
 def get_some_airports(num=1):
     with open(os.path.join(cwd, 'txt', 'airports.tsv'), encoding='utf-8') as airports_f:
         airports_l = airports_f.readlines()
@@ -962,6 +980,19 @@ def get_some_rooms(num=1):
         else:
             yield room
 
+# load takes a bit, amortize costs (magic words) and do work up front
+tooter = markov.Tweeter()
+tooter.load_tweets()
+
+def get_some_faketweets(num=1):
+    for i in range(num):
+        length = random.randint(30,140)
+        rv = tooter.tweet(length).strip().replace('`', r'\`')
+        if '\n' in rv:
+            yield f"```{rv}```"
+        else:
+            yield f"`{rv}`"
+
 
 def format_lines(msg, maxwidth=80):
     lineno = math.ceil(len(msg) / maxwidth)
@@ -1008,19 +1039,22 @@ g_thing_map = {
     'countries': get_some_countries,
     'diseases': get_some_diseases,
     'sports': get_some_sports,
-    #'numbers': get_some_numbers,
+    #'integers': get_some_numbers,
     'greetings': get_some_greets,
     'problems': get_some_problems,
     'spells': get_some_spells,
     'beasties': get_some_beasties,
     'snowplows': get_some_snowplows,
     'stupidnames': get_some_stupidnames,
+    'newpidnames': get_some_newpidnames,
     'airports': get_some_airports,
     'anagrams': get_some_anagrams,
     'movies': get_some_movies,
     'faqs': get_some_gamefaqs,
     'words': get_some_english,
     'rooms': get_some_rooms,
+    'tweets': get_some_faketweets,
+    'fakefaqs': get_some_fakefaqs,
 }
 
 
@@ -1141,6 +1175,7 @@ def thingsay(arg: str) -> str:
         'anagram',
         'movie',
         'faq',
+        'tweet',
     )
     for plslist in to_print_as_list:
         print_as_list |= (plslist in things)

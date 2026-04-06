@@ -662,7 +662,6 @@ def get_markov_fun(msg):
       sock.send('PRIVMSG Klungo {msg}\n'.format(msg=msg).encode('utf-8'))
       sock.settimeout(2)
       resp = sock.recv(4096)
-      print("HONKERS!!!!!!!!!")
       print(resp)
       sock.send(b'QUIT\n')
       if resp.find(b'PRIVMSG planktonbot :')>0:
