@@ -8,10 +8,12 @@ import logging
 import os
 import random
 import re
+import shlex
 import socket
 import stat
 import string
 import subprocess
+import tempfile
 import time
 from typing import List
 
@@ -124,21 +126,21 @@ async def _thingbarf(ctx: commands.Context, *, line: str):
          # just being a fucker
          guessed_thing = 'who cares'
       print("{} != {}, score {}".format(guessed_thing, probable_thing, best_guess))
-      if best_guess >= 3 and 'trev' in asker:
-         # jail
-         criminal = asker
-         with open('jail', 'ab+') as jailf:
-            if jail.get(criminal, 0) >= 10:
-               await ctx.send("Think about what you have done.")
-               return
-            else:
-               if criminal in jail:
-                  jail[criminal] += 1
-               else:
-                  jail[criminal] = 1
-               pickle.dump(jail, jailf)
-         await ctx.send("The criminal {c} has {n} Hilarious Jokes remaining.".format(c=criminal, n=10-jail[criminal]))
-         return
+      # if best_guess >= 3 and 'trev' in asker:
+      #    # jail
+      #    criminal = asker
+      #    with open('jail', 'ab+') as jailf:
+      #       if jail.get(criminal, 0) >= 10:
+      #          await ctx.send("Think about what you have done.")
+      #          return
+      #       else:
+      #          if criminal in jail:
+      #             jail[criminal] += 1
+      #          else:
+      #             jail[criminal] = 1
+      #          pickle.dump(jail, jailf)
+      #    await ctx.send("The criminal {c} has {n} Hilarious Jokes remaining.".format(c=criminal, n=10-jail[criminal]))
+      #    return
 
    await ctx.send(msg)
 
@@ -549,6 +551,24 @@ async def klungordle(ctx: commands.Context, *, line:str=''):
 async def wordle(ctx: commands.Context, *, line:str=''):
    """BLEAHHH!!!!!"""
    await klungordle(ctx, line=line)
+
+@bot.command('tts')
+async def tts(ctx: commands.Context, *, line:str=''):
+    """Klungo converts ur text to speach. I mean speech."""
+    voice = random.choice(('en-us', 'en-us', 'en-us', 'en-us', 'en', 'en', 'en', 'en-sc'))#, 'us-mbrola1', 'us-mbrola2', 'us-mbrola3'))
+    pitch = int(100 * random.gauss(0.5, 0.075))
+    base_speed = 165 if 'mbrola' not in voice else 135
+    speed = int(base_speed * random.gauss(1, 0.075))
+    maxlen = 1200
+    if len(line) > maxlen:
+        line = "Fuck you. " + line[:maxlen]
+    sanitized = ''.join([c.lower() for c in line if c.isalnum()])
+    with tempfile.NamedTemporaryFile("w+", prefix=sanitized, suffix='.wav') as tempf:
+        args = ['espeak', '-v', voice, '-p', f'{pitch}', '-s', f'{speed}', '-w', tempf.name, line]
+        logging.info("Running: %r", args)
+        subprocess.run(args)
+        await ctx.channel.send(tts=True, file=discord.File(tempf.name))
+
 
 @bot.command('grunty')
 async def grunty(ctx: commands.Context):
